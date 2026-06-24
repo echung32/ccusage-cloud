@@ -64,3 +64,16 @@ apiRoutes.delete('/api/devices/:id', async (c) => {
   if (result.meta.changes === 0) return c.json({ error: 'not found' }, 404);
   return c.json({ ok: true });
 });
+
+const PatchMeSchema = v.object({ publicToGroup: v.boolean() });
+
+apiRoutes.patch('/api/me', async (c) => {
+  const { userId } = c.var.viewer;
+  const body = await c.req.json().catch(() => null);
+  const parsed = v.safeParse(PatchMeSchema, body);
+  if (!parsed.success) return c.json({ error: 'invalid payload' }, 400);
+  await c.env.DB.prepare('UPDATE users SET public_to_group = ? WHERE id = ?')
+    .bind(parsed.output.publicToGroup ? 1 : 0, userId)
+    .run();
+  return c.json({ publicToGroup: parsed.output.publicToGroup });
+});

@@ -78,3 +78,28 @@ describe('device management', () => {
     expect(del2.status).toBe(404);
   });
 });
+
+describe('PATCH /api/me', () => {
+  it('toggles group sharing', async () => {
+    const { userId } = await seedUser(env);
+    const on = await asViewer(userId, '/api/me', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ publicToGroup: true }),
+    });
+    expect(on.status).toBe(200);
+    expect(await on.json()).toEqual({ publicToGroup: true });
+    const row = await env.DB.prepare('SELECT public_to_group FROM users WHERE id = ?').bind(userId).first<{ public_to_group: number }>();
+    expect(row?.public_to_group).toBe(1);
+  });
+
+  it('rejects a non-boolean', async () => {
+    const { userId } = await seedUser(env);
+    const res = await asViewer(userId, '/api/me', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ publicToGroup: 'yes' }),
+    });
+    expect(res.status).toBe(400);
+  });
+});
