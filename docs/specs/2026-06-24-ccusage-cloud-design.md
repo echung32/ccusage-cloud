@@ -332,6 +332,23 @@ the project and session views.
   remaining charts (by model/project/person), rate limiting, observability,
   docs + example cron.
 
+## Milestone Specs
+
+Each milestone has its own forward-note spec (and gets a full TDD plan via
+writing-plans before implementation):
+
+- M1 — `docs/plans/2026-06-24-m1-end-to-end-push.md` (plan written)
+- M2 — `docs/specs/2026-06-24-m2-full-sync-and-auth.md`
+- M3 — `docs/specs/2026-06-24-m3-dashboard.md`
+- M4 — `docs/specs/2026-06-24-m4-polish.md`
+
+**Spec drift check (convention):** before implementing any milestone, re-read
+this design spec + that milestone's spec, and re-verify against reality —
+especially the ccusage `<source> session --json` shape (ccusage is an unmodified
+upstream dependency that can change between releases) and the interfaces earlier
+milestones actually shipped. If anything deviates, update the spec and note the
+change **before** writing code. Each milestone spec restates this at its top.
+
 ## Open Questions (defer to implementation)
 
 - Exact Cloudflare Email Sending quota/verification behavior on the paid tier —
