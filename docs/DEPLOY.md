@@ -5,7 +5,7 @@ Each step is intentionally manual — no CI pipeline executes these commands.
 Run them in order the first time you deploy to `ethanchung.dev`.
 
 > **Note on placeholders in `wrangler.jsonc`:** The file intentionally contains
-> `local-dev-placeholder` values for all resource IDs. Real IDs are never
+> `*-local-placeholder` values for the D1 and KV resource IDs. Real IDs are never
 > committed. After each `wrangler` command below you will paste the real ID
 > back into `wrangler.jsonc` locally.
 
@@ -201,7 +201,7 @@ and publishes the Worker to the custom domain configured in Step 7.
 
 - [ ] Health endpoint returns `{"ok":true}`:
   ```sh
-  curl https://ccusage.ethanchung.dev/api/health
+  curl https://ccusage.ethanchung.dev/health
   ```
 - [ ] Login email arrives in the inbox for an allowed email address (magic-link
   flow) within a few minutes of requesting it.
