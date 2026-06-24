@@ -1,6 +1,9 @@
 import * as v from 'valibot';
 
 export const SessionSchema = v.object({
+  // M1 restricts sources to 'claude' on the CLI side (M1_SOURCES). The worker
+  // accepts any string here; a server-side source allow-list (v.picklist) is
+  // deferred to M2, which broadens the supported source set.
   source: v.string(),
   sessionId: v.string(),
   inputTokens: v.number(),
