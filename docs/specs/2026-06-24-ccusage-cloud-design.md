@@ -35,8 +35,11 @@ dashboard, without modifying ccusage itself.
 | Tenancy | **Me + a few invited people** | Per-user tokens + users table, email allowlist, no public signup. |
 | Data granularity | **Full session detail** | Drill-down to individual sessions. Idempotent upserts. |
 | Code location | **Separate repo** (`ccusage-cloud`) | Zero upstream merge risk. |
-| Viewer auth | **App-level magic links** via Cloudflare Email Sending | Full control; small known allowlist. |
+| Viewer auth | **App-level magic links** via Cloudflare Email Sending (from `no-reply@ethanchung.dev`) | Full control; small known allowlist. |
 | Device push auth | **Per-device bearer tokens** | Decoupled from viewer auth. |
+| Group sharing | **Opt-in**, default private | Each user explicitly chooses to expose stats to the group. |
+| Public/group detail | **Overall only** (no per-project) | Group view shows totals/trends; project names never appear in others' views. |
+| Project paths | **Stored plaintext** (`--redact-projects` optional, default off) | Acceptable per owner; redaction available if wanted. |
 
 ## Architecture
 
@@ -61,7 +64,7 @@ Device(s)                         Cloudflare
           ┌──────────────────────────────────────────  │     viewer sessions  │
           ▼                                             └──────────────────────┘
 ┌───────────────────┐
-│ 3. Dashboard SPA  │  (React + Vite, served as Worker static assets)
+│ 3. Dashboard      │  (Astro + Vite on Cloudflare, same origin as the API)
 └───────────────────┘
 ```
 
@@ -153,9 +156,10 @@ prominently.
 
 ```sql
 CREATE TABLE users (
-  id         TEXT PRIMARY KEY,        -- ulid
-  email      TEXT NOT NULL UNIQUE,
-  created_at INTEGER NOT NULL
+  id              TEXT PRIMARY KEY,    -- ulid
+  email           TEXT NOT NULL UNIQUE,
+  public_to_group INTEGER NOT NULL DEFAULT 0,  -- opt-in: 1 = stats visible to group
+  created_at      INTEGER NOT NULL
 );
 
 CREATE TABLE allowed_emails (         -- the invite allowlist
@@ -219,44 +223,61 @@ CREATE INDEX idx_sessions_user_activity ON sessions(user_id, last_activity);
 - `POST /auth/logout` — delete session, clear cookie.
 
 **Dashboard read API (viewer-session auth):**
-- `GET /api/me` — current user + their devices.
+- `GET /api/me` — current user (incl. `publicToGroup`) + their devices.
+- `PATCH /api/me` `{ publicToGroup }` — toggle group sharing.
 - `POST /api/devices` `{ label }` → mint device token (shown once).
 - `DELETE /api/devices/:id` — revoke (set `revoked_at`).
-- `GET /api/summary?from&to&source&device&scope=me|group` — rollups: totals,
-  per-day series, by source, by model, by project, by device, by person.
-- `GET /api/sessions?from&to&source&device&scope&cursor` — paginated session
-  rows for drill-down.
+- `GET /api/summary?from&to&source&device&scope=me|group` — rollups.
+  - `scope=me`: full detail incl. **by project**, across the user's own devices.
+  - `scope=group`: **overall only** — totals, per-day series, by source, by
+    model, by device/person. **No per-project breakdown.**
+- `GET /api/sessions?from&to&source&device&cursor` — paginated session rows for
+  drill-down. **`scope=me` only**; never exposes other users' sessions.
 
 ### Read scope
 
-Default `scope=me`: the logged-in user's own devices. `scope=group`: aggregate
-across **all** allowlisted users (the cross-people goal). Both are read-only and
-gated by a valid viewer session.
+Default `scope=me`: the logged-in user's own devices, full detail incl. project.
+`scope=group`: aggregate across **only users who opted in** (`public_to_group =
+1`), and **overall only** — no project names, no individual session rows leave a
+user. Both are read-only and gated by a valid viewer session. A user always sees
+their own full data regardless of their sharing setting.
 
 ### Email
 
-Cloudflare Email Sending binding (Workers paid tier). For a known allowlist,
-delivery to verified destination addresses is acceptable. Implementation will
-follow the `cloudflare:cloudflare-email-service` skill; if native send is
-insufficient, fall back to a provider (Resend/MailChannels) behind the same
-`sendMagicLink()` interface.
+Cloudflare Email Sending binding (Workers paid tier), sending **from
+`no-reply@ethanchung.dev`** (domain `ethanchung.dev`, SPF/DKIM/DMARC configured
+in Cloudflare). For a known allowlist, delivery to verified destination
+addresses is acceptable. Implementation will follow the
+`cloudflare:cloudflare-email-service` skill; if native send is insufficient,
+fall back to a provider (Resend/MailChannels) behind the same `sendMagicLink()`
+interface.
 
 ---
 
-## Component 3: Dashboard SPA
+## Component 3: Dashboard (Astro)
 
-- **Stack:** Vite + React + TypeScript; charts via Recharts (or `visx`). Served
-  as **Workers Static Assets** from the same Worker (single origin, no CORS).
+- **Stack:** **Astro + Vite** + TypeScript, deployed on Cloudflare (Astro
+  Cloudflare adapter) on the same origin as the API (single origin, no CORS).
+  Charts via a lightweight lib (Recharts/`visx`/Chart.js) in interactive
+  islands.
 - **Auth gate:** no viewer cookie → login screen (enter email → "check your
   inbox"). With cookie → dashboard.
 - **Views:**
   - **Overview** — total tokens & cost over time (daily/weekly), date-range +
     source + device + scope (me/group) filters.
   - **By model / source** — breakdown bars.
-  - **By project** — top projects by cost (respecting redaction).
+  - **By project** — top projects by cost. **`scope=me` only** (hidden in group
+    view).
   - **By device / person** — contribution split.
   - **Sessions** — sortable, filterable, paginated drill-down table.
+    **`scope=me` only.**
+- **Settings** — toggle **"Share my overall stats with the group"**
+  (`publicToGroup`, default off).
 - **Device management** — list devices, add (shows token once), revoke.
+
+When `scope=group` is selected, the dashboard renders only the overall views
+(overview, by model/source, by device/person across opted-in users) and hides
+the project and session views.
 
 ---
 
@@ -297,10 +318,11 @@ insufficient, fall back to a provider (Resend/MailChannels) behind the same
   lands in D1.
 - **M2 — Full sync + auth.** All sources, incremental `state.json`, chunking,
   retries. Magic-link login + viewer sessions + device management API.
-- **M3 — Dashboard.** SPA with Overview + Sessions table, served as static
-  assets. Device add/revoke UI.
-- **M4 — Polish.** Group scope, `--redact-projects`, remaining charts (by
-  model/project/person), rate limiting, observability, docs + example cron.
+- **M3 — Dashboard.** Astro app (Overview + Sessions table) on Cloudflare.
+  Device add/revoke UI. Settings toggle for `publicToGroup`.
+- **M4 — Polish.** Group scope (opt-in, overall-only), `--redact-projects`,
+  remaining charts (by model/project/person), rate limiting, observability,
+  docs + example cron.
 
 ## Open Questions (defer to implementation)
 
