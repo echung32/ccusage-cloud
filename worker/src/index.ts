@@ -6,6 +6,7 @@ import { IngestSchema } from './schema';
 import { upsertSessions } from './db';
 import { authRoutes } from './auth_routes';
 import { apiRoutes } from './api';
+import { readApiRoutes } from './read_api';
 
 const app = new Hono<AppBindings>();
 
@@ -27,5 +28,10 @@ app.post('/ingest', deviceAuth, async (c) => {
 
 app.route('/', authRoutes);
 app.route('/', apiRoutes);
+app.route('/', readApiRoutes);
+
+// Non-API paths are served by the static dashboard via the Assets binding.
+// Registered last so /health, /ingest, /auth/*, and /api/* always win.
+app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default app;

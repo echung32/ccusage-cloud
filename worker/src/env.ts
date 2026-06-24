@@ -15,6 +15,7 @@ export interface Env {
   LOGIN_TOKENS: KVNamespace;
   VIEWER_SESSIONS: KVNamespace;
   EMAIL?: EmailSender;
+  ASSETS: Fetcher;
 }
 
 export interface DeviceContext {

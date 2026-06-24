@@ -12,6 +12,7 @@ export default defineWorkersConfig(async () => {
             d1Databases: ['DB'],
             kvNamespaces: ['LOGIN_TOKENS', 'VIEWER_SESSIONS'],
             bindings: { TEST_MIGRATIONS: migrations },
+            assets: { directory: './test/assets-fixture', binding: 'ASSETS' },
           },
         },
       },
