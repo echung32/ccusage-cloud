@@ -40,7 +40,9 @@ device-management + settings API the M3 dashboard will consume.
 ### B. Viewer auth (Worker)
 5. **Magic-link login.** `POST /auth/request { email }` → if email ∈
    `allowed_emails`, mint a single-use token in KV `LOGIN_TOKENS` (TTL 15 min),
-   email a link via Cloudflare Email Sending from `no-reply@ethanchung.dev`.
+   email a link via Cloudflare Email Sending from `noreply@ethanchung.dev`
+   (apex domain `ethanchung.dev`; the from-domain must match the enabled
+   Email Sending domain).
    Always returns 200 (no enumeration).
 6. **Callback + session.** `GET /auth/callback?token=…` consumes the token,
    creates a `VIEWER_SESSIONS` entry (TTL 30 days, sliding), sets an
