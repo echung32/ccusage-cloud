@@ -1,42 +1,88 @@
-import { readFileSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { syncOnce } from '../src/sync';
 import type { Runner } from '../src/ccusage';
 import type { Config } from '../src/config';
+import { loadState } from '../src/state';
 
-const fixture = readFileSync(join(__dirname, '../fixtures/claude-session.json'), 'utf8');
 const cfg: Config = { serverUrl: 'https://api.example.dev', token: 'cccloud_xyz', ccusageBin: 'ccusage' };
-const run: Runner = () => fixture;
+
+function fixture(n: number): string {
+  const sessions = Array.from({ length: n }, (_, i) => ({
+    sessionId: `s${i}`,
+    inputTokens: 1,
+    outputTokens: 1,
+    cacheCreationTokens: 0,
+    cacheReadTokens: 0,
+    totalTokens: 2,
+    totalCost: 0.1,
+    firstActivity: 'a',
+    lastActivity: 'b',
+    modelsUsed: [],
+    modelBreakdowns: [],
+    projectPath: '/p',
+  }));
+  return JSON.stringify({ sessions, totals: {} });
+}
+const runN = (n: number): Runner => () => fixture(n);
+const ok = () => new Response(JSON.stringify({ upserted: 1, skipped: 0 }), { status: 200 });
+
+function tmpState(): string {
+  return join(mkdtempSync(join(tmpdir(), 'ccc-sync-')), 'state.json');
+}
 
 describe('syncOnce', () => {
-  it('posts tagged sessions to /ingest with the bearer token', async () => {
-    const fetchFn = vi.fn(async () => new Response(JSON.stringify({ upserted: 1, skipped: 0 }), { status: 200 }));
+  it('posts changed sessions and records state; a second run skips them', async () => {
+    const statePath = tmpState();
+    const fetchFn = vi.fn(async () => ok());
+    const first = await syncOnce(cfg, ['claude'], { run: runN(1), fetchFn: fetchFn as unknown as typeof fetch, statePath });
+    expect(first).toEqual({ pushed: 1, skipped: 0, chunks: 1 });
+    expect(loadState(statePath).lastSyncAt).not.toBeNull();
 
-    const result = await syncOnce(cfg, ['claude'], run, fetchFn as unknown as typeof fetch);
-
-    expect(result).toEqual({ pushed: 1 });
-    const calls = fetchFn.mock.calls as unknown as [URL, RequestInit][];
-    const [url, init] = calls[0]!;
-    expect(String(url)).toBe('https://api.example.dev/ingest');
-    expect(init.method).toBe('POST');
-    const headers = init.headers as Record<string, string>;
-    expect(headers.authorization).toBe('Bearer cccloud_xyz');
-    const body = JSON.parse(init.body as string);
-    expect(body.sessions).toHaveLength(1);
-    expect(body.sessions[0].source).toBe('claude');
+    const second = await syncOnce(cfg, ['claude'], { run: runN(1), fetchFn: fetchFn as unknown as typeof fetch, statePath });
+    expect(second).toEqual({ pushed: 0, skipped: 1, chunks: 0 });
+    expect(fetchFn).toHaveBeenCalledTimes(1); // not called again
   });
 
-  it('does not call fetch when there are no sessions', async () => {
-    const fetchFn = vi.fn();
-    const empty: Runner = () => '{"sessions":[],"totals":{}}';
-    const result = await syncOnce(cfg, ['claude'], empty, fetchFn as unknown as typeof fetch);
-    expect(result).toEqual({ pushed: 0 });
-    expect(fetchFn).not.toHaveBeenCalled();
+  it('--full re-sends everything regardless of state', async () => {
+    const statePath = tmpState();
+    const fetchFn = vi.fn(async () => ok());
+    await syncOnce(cfg, ['claude'], { run: runN(1), fetchFn: fetchFn as unknown as typeof fetch, statePath });
+    const full = await syncOnce(cfg, ['claude'], { run: runN(1), fetchFn: fetchFn as unknown as typeof fetch, statePath, full: true });
+    expect(full.pushed).toBe(1);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
-  it('throws when the server responds non-2xx', async () => {
+  it('chunks into batches of chunkSize', async () => {
+    const statePath = tmpState();
+    const fetchFn = vi.fn(async () => ok());
+    const res = await syncOnce(cfg, ['claude'], { run: runN(3), fetchFn: fetchFn as unknown as typeof fetch, statePath, chunkSize: 2 });
+    expect(res).toEqual({ pushed: 3, skipped: 0, chunks: 2 });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries 5xx then succeeds, and persists state only after success', async () => {
+    const statePath = tmpState();
+    let calls = 0;
+    const fetchFn = vi.fn(async () => {
+      calls += 1;
+      return calls === 1 ? new Response('boom', { status: 503 }) : ok();
+    });
+    const res = await syncOnce(cfg, ['claude'], { run: runN(1), fetchFn: fetchFn as unknown as typeof fetch, statePath, retries: 2 });
+    expect(res.pushed).toBe(1);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(Object.keys(loadState(statePath).hashes)).toHaveLength(1);
+  });
+
+  it('does not persist hashes for a batch the server permanently rejects', async () => {
+    const statePath = tmpState();
     const fetchFn = vi.fn(async () => new Response('nope', { status: 401 }));
-    await expect(syncOnce(cfg, ['claude'], run, fetchFn as unknown as typeof fetch)).rejects.toThrow(/401/);
+    await expect(
+      syncOnce(cfg, ['claude'], { run: runN(1), fetchFn: fetchFn as unknown as typeof fetch, statePath, retries: 2 }),
+    ).rejects.toThrow(/401/);
+    expect(fetchFn).toHaveBeenCalledTimes(1); // 4xx not retried
+    expect(loadState(statePath).hashes).toEqual({});
   });
 });

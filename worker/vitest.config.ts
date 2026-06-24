@@ -10,6 +10,7 @@ export default defineWorkersConfig(async () => {
           wrangler: { configPath: './wrangler.jsonc' },
           miniflare: {
             d1Databases: ['DB'],
+            kvNamespaces: ['LOGIN_TOKENS', 'VIEWER_SESSIONS'],
             bindings: { TEST_MIGRATIONS: migrations },
           },
         },

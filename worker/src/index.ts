@@ -4,6 +4,8 @@ import type { AppBindings } from './env';
 import { deviceAuth } from './auth';
 import { IngestSchema } from './schema';
 import { upsertSessions } from './db';
+import { authRoutes } from './auth_routes';
+import { apiRoutes } from './api';
 
 const app = new Hono<AppBindings>();
 
@@ -22,5 +24,8 @@ app.post('/ingest', deviceAuth, async (c) => {
     .run();
   return c.json({ upserted, skipped: 0 });
 });
+
+app.route('/', authRoutes);
+app.route('/', apiRoutes);
 
 export default app;

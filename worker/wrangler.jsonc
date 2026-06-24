@@ -1,8 +1,11 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "ccusage-cloud",
   "main": "src/index.ts",
-  "compatibility_date": "2025-01-01",
+  "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
   "observability": { "enabled": true },
   "d1_databases": [
     {
@@ -11,5 +14,10 @@
       "database_id": "local-dev-placeholder",
       "migrations_dir": "migrations"
     }
-  ]
+  ],
+  "kv_namespaces": [
+    { "binding": "LOGIN_TOKENS", "id": "login-tokens-local-placeholder" },
+    { "binding": "VIEWER_SESSIONS", "id": "viewer-sessions-local-placeholder" }
+  ],
+  "send_email": [{ "name": "EMAIL" }]
 }
