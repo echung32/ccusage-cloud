@@ -49,7 +49,9 @@ a **single Cloudflare Worker**: Hono is the Worker entry and serves the API
 (`/ingest`, `/auth/*`, `/api/*`); all other paths fall through to the Astro
 **static build** via the Worker Assets binding (`env.ASSETS.fetch`). The
 dashboard is client-rendered (hydrated islands hitting the JSON API), so no SSR
-Worker is needed.
+Worker is needed. The Worker is bound to a **custom domain** on the
+`ethanchung.dev` zone (the `workers.dev` route is disabled); the dashboard and
+the `no-reply@ethanchung.dev` sender share that zone.
 
 ```
 Device(s)                         Cloudflare
