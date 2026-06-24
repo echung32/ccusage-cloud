@@ -7,12 +7,15 @@ import { upsertSessions } from './db';
 import { authRoutes } from './auth_routes';
 import { apiRoutes } from './api';
 import { readApiRoutes } from './read_api';
+import { rateLimit } from './ratelimit';
 
 const app = new Hono<AppBindings>();
 
 app.get('/health', (c) => c.json({ ok: true }));
 
 app.post('/ingest', deviceAuth, async (c) => {
+  const rl = await rateLimit(c.env.RATE_LIMITS, `ingest:${c.var.device.deviceId}`, 600, 60);
+  if (!rl.ok) return c.json({ error: 'rate limited' }, 429);
   const body = await c.req.json().catch(() => null);
   const parsed = v.safeParse(IngestSchema, body);
   if (!parsed.success) {

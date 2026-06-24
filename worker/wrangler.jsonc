@@ -17,7 +17,8 @@
   ],
   "kv_namespaces": [
     { "binding": "LOGIN_TOKENS", "id": "login-tokens-local-placeholder" },
-    { "binding": "VIEWER_SESSIONS", "id": "viewer-sessions-local-placeholder" }
+    { "binding": "VIEWER_SESSIONS", "id": "viewer-sessions-local-placeholder" },
+    { "binding": "RATE_LIMITS", "id": "rate-limits-local-placeholder" }
   ],
   "send_email": [{ "name": "EMAIL" }],
   "assets": {
