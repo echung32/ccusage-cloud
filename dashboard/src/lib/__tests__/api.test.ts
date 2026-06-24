@@ -73,4 +73,11 @@ describe('api client', () => {
     vi.stubGlobal('fetch', mockFetch({ error: 'nope' }, 401));
     await expect(getMe()).rejects.toThrow();
   });
+
+  it('getSummary serializes scope=group', async () => {
+    const f = mockFetch({ totals: { sessions: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalCost: 0 }, byDay: [], bySource: [], byModel: [], byProject: [], byDevice: [] });
+    vi.stubGlobal('fetch', f);
+    await getSummary({ scope: 'group' });
+    expect(f.mock.calls[0][0]).toContain('scope=group');
+  });
 });
