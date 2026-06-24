@@ -27,3 +27,17 @@ export async function seedDevice(
   ]);
   return { token, userId, deviceId };
 }
+
+export async function seedUser(
+  env: Env,
+  email = `viewer${counter}@example.com`,
+): Promise<{ userId: string; email: string }> {
+  counter += 1;
+  const userId = `usr_v${counter}`;
+  const now = Date.now();
+  await env.DB.batch([
+    env.DB.prepare('INSERT OR IGNORE INTO allowed_emails (email, added_at) VALUES (?, ?)').bind(email, now),
+    env.DB.prepare('INSERT INTO users (id, email, public_to_group, created_at) VALUES (?, ?, 0, ?)').bind(userId, email, now),
+  ]);
+  return { userId, email };
+}
