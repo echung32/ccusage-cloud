@@ -1,0 +1,33 @@
+{
+  "sessions": [
+    {
+      "sessionId": "sess-aaa",
+      "inputTokens": 1000,
+      "outputTokens": 2000,
+      "cacheCreationTokens": 50,
+      "cacheReadTokens": 300,
+      "totalTokens": 3350,
+      "totalCost": 0.42,
+      "firstActivity": "2026-06-20T10:00:00Z",
+      "lastActivity": "2026-06-20T12:30:00Z",
+      "modelsUsed": ["claude-opus-4-8"],
+      "modelBreakdowns": [{ "modelName": "claude-opus-4-8", "cost": 0.42 }],
+      "projectPath": "/home/me/work/app"
+    },
+    {
+      "sessionId": null,
+      "inputTokens": 5,
+      "outputTokens": 5,
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 0,
+      "totalTokens": 10,
+      "totalCost": 0.0,
+      "firstActivity": null,
+      "lastActivity": null,
+      "modelsUsed": [],
+      "modelBreakdowns": [],
+      "projectPath": null
+    }
+  ],
+  "totals": { "totalCost": 0.42 }
+}
