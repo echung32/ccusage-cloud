@@ -1,2 +1,3 @@
-// Migrations are applied in Task 2. Placeholder for setupFiles resolution.
-export {};
+import { applyD1Migrations, env } from 'cloudflare:test';
+
+await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
