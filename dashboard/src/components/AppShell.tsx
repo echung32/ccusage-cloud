@@ -16,7 +16,7 @@ export function AppShell({ active, scope = 'me', children }: { active: string; s
     const p = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
     if (s === 'group') p.set('scope', 'group'); else p.delete('scope');
     const qs = p.toString();
-    return qs ? `?${qs}` : window?.location?.pathname ?? '/overview';
+    return qs ? `?${qs}` : (typeof window !== 'undefined' ? window.location.pathname : '/overview');
   };
   return (
     <div className="min-h-screen">

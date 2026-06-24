@@ -5,6 +5,17 @@ import { ByProject } from '../ByProject';
 afterEach(() => vi.restoreAllMocks());
 
 describe('ByProject', () => {
+  it('does not fetch and shows a notice in group scope', async () => {
+    const original = window.location.search;
+    window.history.replaceState(null, '', '?scope=group');
+    const f = vi.fn();
+    vi.stubGlobal('fetch', f);
+    render(<ByProject />);
+    await screen.findByText(/my view/i);
+    expect(f).not.toHaveBeenCalled();
+    window.history.replaceState(null, '', original || '/');
+  });
+
   it('renders the project rows sorted by cost', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
       const body = url.startsWith('/api/me')

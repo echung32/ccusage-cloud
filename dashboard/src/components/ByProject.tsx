@@ -7,20 +7,38 @@ import { AppShell } from '@/components/AppShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function ByProject() {
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>(() => readFiltersFromUrl());
   const [me, setMe] = useState<Me | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
 
-  useEffect(() => { setFilters(readFiltersFromUrl()); getMe().then(setMe).catch(() => setMe(null)); }, []);
-  useEffect(() => { getSummary(filters).then(setSummary).catch(() => setSummary(null)); }, [filters]);
+  useEffect(() => {
+    if (filters.scope === 'group') return;
+    getMe().then(setMe).catch(() => setMe(null));
+  }, [filters.scope]);
+
+  const scope = filters.scope ?? 'me';
+
+  useEffect(() => {
+    if (scope === 'group') return; // overall-only: no project breakdown for the group
+    getSummary(filters).then(setSummary).catch(() => setSummary(null));
+  }, [filters, scope]);
+
   const onChange = useCallback((f: Filters) => { writeFiltersToUrl(f); setFilters(f); }, []);
+
+  if (scope === 'group') {
+    return (
+      <AppShell active="/projects" scope="group">
+        <p className="p-4 text-sm text-slate-600">Switch to My view to see project breakdown (not available in group scope).</p>
+      </AppShell>
+    );
+  }
 
   const sources = summary?.bySource.map((s) => s.source) ?? [];
   const devices = me?.devices.map((d) => ({ id: d.id, label: d.label })) ?? [];
   const rows = [...(summary?.byProject ?? [])].sort((a, b) => b.totalCost - a.totalCost);
 
   return (
-    <AppShell active="/projects">
+    <AppShell active="/projects" scope={scope}>
       <div className="space-y-6">
         <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
         <Card>

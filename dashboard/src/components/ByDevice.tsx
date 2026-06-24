@@ -23,7 +23,7 @@ export function ByDevice() {
   const data = summary?.byDevice ?? [];
 
   return (
-    <AppShell active="/devices">
+    <AppShell active="/devices" scope={filters.scope ?? 'me'}>
       <div className="space-y-6">
         <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
         <Card>
