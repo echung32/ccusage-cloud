@@ -21,7 +21,7 @@ export const SessionSchema = v.object({
 });
 
 export const IngestSchema = v.object({
-  sessions: v.array(SessionSchema),
+  sessions: v.pipe(v.array(SessionSchema), v.maxLength(1000)),
 });
 
 export type SessionPayload = v.InferOutput<typeof SessionSchema>;
