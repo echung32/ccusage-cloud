@@ -5,6 +5,7 @@ import { deviceAuth } from './auth';
 import { IngestSchema } from './schema';
 import { upsertSessions } from './db';
 import { authRoutes } from './auth_routes';
+import { requireViewer } from './viewer';
 
 const app = new Hono<AppBindings>();
 
@@ -25,5 +26,7 @@ app.post('/ingest', deviceAuth, async (c) => {
 });
 
 app.route('/', authRoutes);
+
+app.get('/_whoami_viewer', requireViewer, (c) => c.json(c.var.viewer));
 
 export default app;
