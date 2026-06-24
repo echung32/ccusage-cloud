@@ -11,14 +11,17 @@ import { Table, THead, TBody, TR, TH, TD } from '@/components/ui/table';
 type SortKey = 'lastActivity' | 'totalTokens' | 'totalCost';
 
 export function SessionsTable() {
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>(() => readFiltersFromUrl());
   const [me, setMe] = useState<Me | null>(null);
   const [rows, setRows] = useState<SessionItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>('lastActivity');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { setFilters(readFiltersFromUrl()); getMe().then(setMe).catch(() => setMe(null)); }, []);
+  useEffect(() => {
+    if ((filters.scope ?? 'me') === 'group') return;
+    getMe().then(setMe).catch(() => setMe(null));
+  }, [filters.scope]);
 
   const scope = filters.scope ?? 'me';
 
