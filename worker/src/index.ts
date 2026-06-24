@@ -8,6 +8,7 @@ import { authRoutes } from './auth_routes';
 import { apiRoutes } from './api';
 import { readApiRoutes } from './read_api';
 import { rateLimit } from './ratelimit';
+import { safeLog } from './log';
 
 const app = new Hono<AppBindings>();
 
@@ -23,6 +24,7 @@ app.post('/ingest', deviceAuth, async (c) => {
   }
   const { userId, deviceId } = c.var.device;
   const upserted = await upsertSessions(c.env.DB, userId, deviceId, parsed.output.sessions);
+  safeLog('ingest', { deviceId, upserted });
   await c.env.DB.prepare('UPDATE devices SET last_seen_at = ? WHERE id = ?')
     .bind(Date.now(), deviceId)
     .run();

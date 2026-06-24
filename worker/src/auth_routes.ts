@@ -6,6 +6,7 @@ import { consumeLoginToken, deleteViewerSession, putLoginToken, putViewerSession
 import { randomBase64Url } from './tokens';
 import { sendMagicLink } from './email';
 import { rateLimit } from './ratelimit';
+import { safeLog } from './log';
 
 const RequestSchema = v.object({ email: v.pipe(v.string(), v.email()) });
 
@@ -34,6 +35,7 @@ authRoutes.post('/auth/request', async (c) => {
       // Token is minted; never 500 after that. User can re-request.
     }
   }
+  safeLog('auth_request', { allowed: Boolean(allowed) });
   return c.json({ ok: true });
 });
 
