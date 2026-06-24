@@ -11,14 +11,19 @@ import { Table, THead, TBody, TR, TH, TD } from '@/components/ui/table';
 type SortKey = 'lastActivity' | 'totalTokens' | 'totalCost';
 
 export function SessionsTable() {
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>(() => readFiltersFromUrl());
   const [me, setMe] = useState<Me | null>(null);
   const [rows, setRows] = useState<SessionItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>('lastActivity');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { setFilters(readFiltersFromUrl()); getMe().then(setMe).catch(() => setMe(null)); }, []);
+  useEffect(() => {
+    if ((filters.scope ?? 'me') === 'group') return;
+    getMe().then(setMe).catch(() => setMe(null));
+  }, [filters.scope]);
+
+  const scope = filters.scope ?? 'me';
 
   const loadFirst = useCallback((f: Filters) => {
     setLoading(true);
@@ -28,9 +33,20 @@ export function SessionsTable() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { loadFirst(filters); }, [filters, loadFirst]);
+  useEffect(() => {
+    if (scope === 'group') return; // overall-only: no session breakdown for the group
+    loadFirst(filters);
+  }, [filters, loadFirst, scope]);
 
   const onChange = useCallback((f: Filters) => { writeFiltersToUrl(f); setFilters(f); }, []);
+
+  if (scope === 'group') {
+    return (
+      <AppShell active="/sessions" scope="group">
+        <p className="p-4 text-sm text-slate-600">Session list is only available in <strong>My</strong> view. Switch scope to "Me".</p>
+      </AppShell>
+    );
+  }
 
   function loadMore() {
     if (!cursor) return;
@@ -50,7 +66,7 @@ export function SessionsTable() {
   const devices = me?.devices.map((d) => ({ id: d.id, label: d.label })) ?? [];
 
   return (
-    <AppShell active="/sessions">
+    <AppShell active="/sessions" scope={scope}>
       <div className="space-y-6">
         <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
         <Card>

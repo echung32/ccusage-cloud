@@ -20,7 +20,7 @@ export function BySourceModel() {
   const devices = me?.devices.map((d) => ({ id: d.id, label: d.label })) ?? [];
 
   return (
-    <AppShell active="/sources">
+    <AppShell active="/sources" scope={filters.scope ?? 'me'}>
       <div className="space-y-6">
         <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
         <Card>

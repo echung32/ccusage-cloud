@@ -6,6 +6,18 @@ import { SessionsTable } from '../SessionsTable';
 afterEach(() => vi.restoreAllMocks());
 
 describe('SessionsTable', () => {
+  it('does not fetch and shows a notice in group scope', async () => {
+    const original = window.location.search;
+    window.history.replaceState(null, '', '?scope=group');
+    const f = vi.fn();
+    vi.stubGlobal('fetch', f);
+    render(<SessionsTable />);
+    // The notice text "My view" is split across a <strong>My</strong> + text node; match the paragraph
+    await screen.findAllByText((_, element) => element?.tagName === 'P' && /my view/i.test(element.textContent ?? ''));
+    expect(f).not.toHaveBeenCalled();
+    window.history.replaceState(null, '', original || '/');
+  });
+
   it('renders the first page and loads more via the cursor', async () => {
     const f = vi.fn().mockImplementation((url: string) => {
       if (url.startsWith('/api/me')) {

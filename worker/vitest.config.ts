@@ -10,7 +10,7 @@ export default defineWorkersConfig(async () => {
           wrangler: { configPath: './wrangler.jsonc' },
           miniflare: {
             d1Databases: ['DB'],
-            kvNamespaces: ['LOGIN_TOKENS', 'VIEWER_SESSIONS'],
+            kvNamespaces: ['LOGIN_TOKENS', 'VIEWER_SESSIONS', 'RATE_LIMITS'],
             bindings: { TEST_MIGRATIONS: migrations },
             assets: { directory: './test/assets-fixture', binding: 'ASSETS' },
           },

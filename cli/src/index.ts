@@ -4,6 +4,7 @@ import { loadConfig, saveConfig } from './config';
 import { loadSessions, type Runner } from './ccusage';
 import { diffSessions, loadState } from './state';
 import { ALL_SOURCES } from './sources';
+import { redactProjects } from './redact';
 
 export async function run(argv: string[], runner?: Runner): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -15,6 +16,7 @@ export async function run(argv: string[], runner?: Runner): Promise<number> {
       'ccusage-bin': { type: 'string' },
       source: { type: 'string' },
       full: { type: 'boolean' },
+      'redact-projects': { type: 'boolean' },
     },
   });
   const cmd = positionals[0];
@@ -28,6 +30,7 @@ export async function run(argv: string[], runner?: Runner): Promise<number> {
       serverUrl: values.server,
       token: values.token,
       ccusageBin: values['ccusage-bin'] ?? 'ccusage',
+      redactProjects: values['redact-projects'] ?? false,
     });
     console.log('Saved credentials.');
     return 0;
@@ -39,9 +42,10 @@ export async function run(argv: string[], runner?: Runner): Promise<number> {
       console.error('Not logged in. Run `ccusage-cloud login --server <url> --token <token>`.');
       return 1;
     }
+    const cfg2 = { ...cfg, redactProjects: values['redact-projects'] ?? cfg.redactProjects ?? false };
     const sources = values.source ? [values.source] : [...ALL_SOURCES];
     const { syncOnce } = await import('./sync');
-    const { pushed, skipped } = await syncOnce(cfg, sources, { full: values.full ?? false, run: runner });
+    const { pushed, skipped } = await syncOnce(cfg2, sources, { full: values.full ?? false, run: runner });
     console.log(`Pushed ${pushed} sessions (${skipped} unchanged).`);
     return 0;
   }
@@ -52,13 +56,15 @@ export async function run(argv: string[], runner?: Runner): Promise<number> {
       console.error('Not logged in.');
       return 1;
     }
+    const cfg2 = { ...cfg, redactProjects: values['redact-projects'] ?? cfg.redactProjects ?? false };
     const state = loadState();
     const sources = values.source ? [values.source] : [...ALL_SOURCES];
-    const all = sources.flatMap((s) => loadSessions(s, cfg.ccusageBin, runner));
-    const { changed } = diffSessions(all, state);
+    const all = sources.flatMap((s) => loadSessions(s, cfg2.ccusageBin, runner));
+    const collected = cfg2.redactProjects ? redactProjects(all) : all;
+    const { changed } = diffSessions(collected, state);
     const last = state.lastSyncAt ? new Date(state.lastSyncAt).toISOString() : 'never';
-    console.log(`Server:    ${cfg.serverUrl}`);
-    console.log(`ccusage:   ${cfg.ccusageBin}`);
+    console.log(`Server:    ${cfg2.serverUrl}`);
+    console.log(`ccusage:   ${cfg2.ccusageBin}`);
     console.log(`Last sync: ${last}`);
     console.log(`Pending:   ${changed.length} session(s)`);
     return 0;

@@ -85,4 +85,14 @@ describe('syncOnce', () => {
     expect(fetchFn).toHaveBeenCalledTimes(1); // 4xx not retried
     expect(loadState(statePath).hashes).toEqual({});
   });
+
+  it('redacts projectPath before push when cfg.redactProjects is set', async () => {
+    const run = () => JSON.stringify({ sessions: [{ sessionId: 's1', inputTokens: 1, outputTokens: 1, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 2, totalCost: 0, projectPath: '/work/secret' }] });
+    let sentBody = '';
+    const fetchFn = (async (_url: string | URL, init?: RequestInit) => { sentBody = String(init?.body ?? ''); return new Response('{}', { status: 200 }); }) as unknown as typeof fetch;
+    const cfg2 = { serverUrl: 'https://x.dev', token: 't', ccusageBin: 'ccusage', redactProjects: true };
+    await syncOnce(cfg2, ['claude'], { run, fetchFn, full: true, statePath: `${process.env.TMPDIR ?? '/tmp'}/redact-state-${Math.random()}.json` });
+    expect(sentBody).not.toContain('/work/secret');
+    expect(sentBody).toMatch(/[0-9a-f]{64}/);
+  });
 });

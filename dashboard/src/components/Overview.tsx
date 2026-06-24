@@ -30,7 +30,7 @@ export function Overview() {
   const devices = me?.devices.map((d) => ({ id: d.id, label: d.label })) ?? [];
 
   return (
-    <AppShell active="/overview">
+    <AppShell active="/overview" scope={filters.scope ?? 'me'}>
       <div className="space-y-6">
         <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

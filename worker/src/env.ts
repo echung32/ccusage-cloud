@@ -14,6 +14,7 @@ export interface Env {
   DB: D1Database;
   LOGIN_TOKENS: KVNamespace;
   VIEWER_SESSIONS: KVNamespace;
+  RATE_LIMITS: KVNamespace;
   EMAIL?: EmailSender;
   ASSETS: Fetcher;
 }

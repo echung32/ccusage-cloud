@@ -9,4 +9,4 @@ export interface ByDevice { deviceId: string; label: string; totalTokens: number
 export interface Summary { totals: SummaryTotals; byDay: ByDay[]; bySource: BySource[]; byModel: ByModel[]; byProject: ByProject[]; byDevice: ByDevice[] }
 export interface SessionItem { source: string; sessionId: string; deviceId: string; totalTokens: number; totalCost: number; firstActivity: string | null; lastActivity: string | null; modelsUsed: string[]; projectPath: string | null }
 export interface SessionsPage { sessions: SessionItem[]; nextCursor: string | null }
-export interface Filters { from?: string; to?: string; source?: string; device?: string }
+export interface Filters { from?: string; to?: string; source?: string; device?: string; scope?: 'me' | 'group' }

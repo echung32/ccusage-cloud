@@ -5,12 +5,17 @@ import type { AppBindings } from './env';
 import { consumeLoginToken, deleteViewerSession, putLoginToken, putViewerSession } from './kv';
 import { randomBase64Url } from './tokens';
 import { sendMagicLink } from './email';
+import { rateLimit } from './ratelimit';
+import { safeLog } from './log';
 
 const RequestSchema = v.object({ email: v.pipe(v.string(), v.email()) });
 
 export const authRoutes = new Hono<AppBindings>();
 
 authRoutes.post('/auth/request', async (c) => {
+  const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+  const rl = await rateLimit(c.env.RATE_LIMITS, `auth:${ip}`, 30, 60);
+  if (!rl.ok) return c.json({ ok: true });
   const body = await c.req.json().catch(() => null);
   const parsed = v.safeParse(RequestSchema, body);
   // Always 200 (no enumeration), even on malformed input.
@@ -30,6 +35,7 @@ authRoutes.post('/auth/request', async (c) => {
       // Token is minted; never 500 after that. User can re-request.
     }
   }
+  safeLog('auth_request', { allowed: Boolean(allowed) });
   return c.json({ ok: true });
 });
 
