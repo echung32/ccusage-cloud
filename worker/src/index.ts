@@ -1,11 +1,26 @@
 import { Hono } from 'hono';
+import * as v from 'valibot';
 import type { AppBindings } from './env';
 import { deviceAuth } from './auth';
+import { IngestSchema } from './schema';
+import { upsertSessions } from './db';
 
 const app = new Hono<AppBindings>();
 
 app.get('/health', (c) => c.json({ ok: true }));
 
-app.get('/_whoami', deviceAuth, (c) => c.json(c.var.device));
+app.post('/ingest', deviceAuth, async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = v.safeParse(IngestSchema, body);
+  if (!parsed.success) {
+    return c.json({ error: 'invalid payload' }, 400);
+  }
+  const { userId, deviceId } = c.var.device;
+  const upserted = await upsertSessions(c.env.DB, userId, deviceId, parsed.output.sessions);
+  await c.env.DB.prepare('UPDATE devices SET last_seen_at = ? WHERE id = ?')
+    .bind(Date.now(), deviceId)
+    .run();
+  return c.json({ upserted, skipped: 0 });
+});
 
 export default app;
