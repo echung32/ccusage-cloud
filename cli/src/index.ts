@@ -1,7 +1,6 @@
 import { parseArgs } from 'node:util';
 import { loadConfig, saveConfig } from './config';
-
-const M1_SOURCES = ['claude'];
+import { ALL_SOURCES } from './sources';
 
 export async function run(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -11,6 +10,7 @@ export async function run(argv: string[]): Promise<number> {
       token: { type: 'string' },
       server: { type: 'string' },
       'ccusage-bin': { type: 'string' },
+      source: { type: 'string' },
     },
   });
   const cmd = positionals[0];
@@ -35,10 +35,10 @@ export async function run(argv: string[]): Promise<number> {
       console.error('Not logged in. Run `ccusage-cloud login --server <url> --token <token>`.');
       return 1;
     }
-    // Wired in Task 8.
+    const sources = values.source ? [values.source] : [...ALL_SOURCES];
     const { syncOnce } = await import('./sync');
-    const { pushed } = await syncOnce(cfg, M1_SOURCES);
-    console.log(`Pushed ${pushed} sessions.`);
+    const { pushed, skipped } = await syncOnce(cfg, sources);
+    console.log(`Pushed ${pushed} sessions (${skipped} unchanged).`);
     return 0;
   }
 
