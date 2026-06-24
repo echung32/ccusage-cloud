@@ -40,10 +40,16 @@ dashboard, without modifying ccusage itself.
 | Group sharing | **Opt-in**, default private | Each user explicitly chooses to expose stats to the group. |
 | Public/group detail | **Overall only** (no per-project) | Group view shows totals/trends; project names never appear in others' views. |
 | Project paths | **Stored plaintext** (`--redact-projects` optional, default off) | Acceptable per owner; redaction available if wanted. |
+| Deployment topology | **Single Worker** (Hono entry + Astro static assets) | One deploy, one origin, no CORS/service binding. Dashboard needs no SSR. |
 
 ## Architecture
 
-Three independent, separately-testable components:
+Three independent, separately-testable components. Components 2 and 3 deploy as
+a **single Cloudflare Worker**: Hono is the Worker entry and serves the API
+(`/ingest`, `/auth/*`, `/api/*`); all other paths fall through to the Astro
+**static build** via the Worker Assets binding (`env.ASSETS.fetch`). The
+dashboard is client-rendered (hydrated islands hitting the JSON API), so no SSR
+Worker is needed.
 
 ```
 Device(s)                         Cloudflare
@@ -64,8 +70,8 @@ Device(s)                         Cloudflare
           ┌──────────────────────────────────────────  │     viewer sessions  │
           ▼                                             └──────────────────────┘
 ┌───────────────────┐
-│ 3. Dashboard      │  (Astro + Vite on Cloudflare, same origin as the API)
-└───────────────────┘
+│ 3. Dashboard      │  (Astro + Vite, static build served by the SAME Worker
+└───────────────────┘   via env.ASSETS — not a separate Worker)
 ```
 
 **Two decoupled auth paths:**
@@ -256,10 +262,10 @@ interface.
 
 ## Component 3: Dashboard (Astro)
 
-- **Stack:** **Astro + Vite** + TypeScript, deployed on Cloudflare (Astro
-  Cloudflare adapter) on the same origin as the API (single origin, no CORS).
-  Charts via a lightweight lib (Recharts/`visx`/Chart.js) in interactive
-  islands.
+- **Stack:** **Astro + Vite** + TypeScript, built to **static output** (no SSR)
+  and served by the same Hono Worker via the Assets binding — same origin, no
+  CORS, no second Worker. Charts via a lightweight lib (Recharts/`visx`/
+  Chart.js) in interactive islands that fetch the JSON API.
 - **Auth gate:** no viewer cookie → login screen (enter email → "check your
   inbox"). With cookie → dashboard.
 - **Views:**
