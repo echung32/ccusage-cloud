@@ -11,6 +11,7 @@ export async function run(argv: string[]): Promise<number> {
       server: { type: 'string' },
       'ccusage-bin': { type: 'string' },
       source: { type: 'string' },
+      full: { type: 'boolean' },
     },
   });
   const cmd = positionals[0];
@@ -37,7 +38,7 @@ export async function run(argv: string[]): Promise<number> {
     }
     const sources = values.source ? [values.source] : [...ALL_SOURCES];
     const { syncOnce } = await import('./sync');
-    const { pushed, skipped } = await syncOnce(cfg, sources);
+    const { pushed, skipped } = await syncOnce(cfg, sources, { full: values.full ?? false });
     console.log(`Pushed ${pushed} sessions (${skipped} unchanged).`);
     return 0;
   }
