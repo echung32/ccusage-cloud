@@ -163,4 +163,4 @@ The setting is stored in `~/.config/ccusage-cloud/config.json` so scheduled `syn
 
 ### Group sharing
 
-Group sharing is **opt-in** and exposes only an **overall aggregate** (total tokens / cost). No project names, session rows, model breakdowns, or source names are shared with group members.
+Group sharing is **opt-in** (off by default) and exposes only **overall rollups**: totals (tokens / cost), the per-day series, by-source and by-model breakdowns, and a per-person split (labeled by email) across opted-in members. **No project names and no individual session rows** are ever shared with the group — those stay in your own (`scope=me`) view only. Members who do not opt in contribute nothing to the group aggregate.
