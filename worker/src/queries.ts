@@ -159,15 +159,21 @@ export async function groupSummaryQuery(db: D1Database, filters: SummaryFilters)
     runTotals(db, w), runByDay(db, w), runBySource(db, w), runByModel(db, w),
   ]);
   // per-person contribution (overall-only; reuses the ByDevice shape, label = email)
+  const pwParts = ['u.public_to_group = 1'];
+  const pwBinds: string[] = [];
+  if (filters.from) { pwParts.push('s.last_activity >= ?'); pwBinds.push(filters.from); }
+  if (filters.to) { pwParts.push('s.last_activity <= ?'); pwBinds.push(filters.to); }
+  if (filters.source) { pwParts.push('s.source = ?'); pwBinds.push(filters.source); }
+  // device filter is intentionally ignored in group scope (device ids are per-user).
   const byPerson = (await db.prepare(
     `SELECT u.id AS deviceId, u.email AS label,
             COALESCE(SUM(s.total_tokens),0) AS totalTokens,
             COALESCE(SUM(s.total_cost),0) AS totalCost,
             COUNT(*) AS sessions
      FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE u.public_to_group = 1${filters.from ? ' AND s.last_activity >= ?' : ''}${filters.to ? ' AND s.last_activity <= ?' : ''}${filters.source ? ' AND s.source = ?' : ''}
+     WHERE ${pwParts.join(' AND ')}
      GROUP BY u.id, u.email ORDER BY totalCost DESC`,
-  ).bind(...[filters.from, filters.to, filters.source].filter((x): x is string => !!x)).all<ByDevice>()).results;
+  ).bind(...pwBinds).all<ByDevice>()).results;
   return { totals, byDay, bySource, byModel, byProject: [], byDevice: byPerson };
 }
 
