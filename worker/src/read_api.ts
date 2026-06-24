@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import * as v from 'valibot';
 import type { AppBindings } from './env';
 import { requireViewer } from './viewer';
-import { summaryQuery, sessionsPage, clampLimit, type SummaryFilters } from './queries';
+import { summaryQuery, sessionsPage, groupSummaryQuery, clampLimit, type SummaryFilters } from './queries';
 
 export const readApiRoutes = new Hono<AppBindings>();
 
@@ -14,6 +14,10 @@ const FiltersSchema = v.object({
   source: v.optional(v.string()),
   device: v.optional(v.string()),
 });
+
+function parseScope(c: { req: { query: () => Record<string, string> } }): 'me' | 'group' {
+  return c.req.query().scope === 'group' ? 'group' : 'me';
+}
 
 function parseFilters(c: { req: { query: () => Record<string, string> } }): SummaryFilters {
   const raw = c.req.query();
@@ -27,9 +31,11 @@ function parseFilters(c: { req: { query: () => Record<string, string> } }): Summ
 }
 
 readApiRoutes.get('/api/summary', async (c) => {
-  const { userId } = c.var.viewer;
   const filters = parseFilters(c);
-  const summary = await summaryQuery(c.env.DB, userId, filters);
+  const scope = parseScope(c);
+  const summary = scope === 'group'
+    ? await groupSummaryQuery(c.env.DB, filters)
+    : await summaryQuery(c.env.DB, c.var.viewer.userId, filters);
   return c.json(summary);
 });
 
