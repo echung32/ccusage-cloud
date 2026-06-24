@@ -33,6 +33,7 @@ describe('POST /ingest', () => {
   it('requires auth', async () => {
     const res = await SELF.fetch('https://example.com/ingest', {
       method: 'POST',
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ sessions: [] }),
     });
     expect(res.status).toBe(401);
@@ -63,21 +64,21 @@ describe('POST /ingest', () => {
   });
 
   it('is idempotent: re-pushing updates, does not duplicate', async () => {
-    const { token, userId } = await seedDevice(env);
+    const { token, userId, deviceId } = await seedDevice(env);
     await post(token, [session({ totalCost: 0.5 })]);
     await post(token, [session({ totalCost: 1.25 })]);
 
     const count = await env.DB.prepare(
-      'SELECT COUNT(*) AS n FROM sessions WHERE user_id=? AND session_id=?',
+      'SELECT COUNT(*) AS n FROM sessions WHERE user_id=? AND device_id=? AND source=? AND session_id=?',
     )
-      .bind(userId, 's1')
+      .bind(userId, deviceId, 'claude', 's1')
       .first<{ n: number }>();
     expect(count?.n).toBe(1);
 
     const row = await env.DB.prepare(
-      'SELECT total_cost FROM sessions WHERE user_id=? AND session_id=?',
+      'SELECT total_cost FROM sessions WHERE user_id=? AND device_id=? AND source=? AND session_id=?',
     )
-      .bind(userId, 's1')
+      .bind(userId, deviceId, 'claude', 's1')
       .first<{ total_cost: number }>();
     expect(row?.total_cost).toBe(1.25);
   });
