@@ -55,3 +55,39 @@ describe('GET /api/summary', () => {
     expect(body.totals.totalTokens).toBe(5);
   });
 });
+
+describe('GET /api/sessions', () => {
+  it('401s unauthenticated', async () => {
+    expect((await SELF.fetch('https://example.com/api/sessions')).status).toBe(401);
+  });
+
+  it('returns a first page + nextCursor and a second page', async () => {
+    const { userId } = await seedUser(env);
+    const { deviceId } = await seedDevice(env, `sp-${userId}@example.com`);
+    for (let i = 0; i < 3; i++) {
+      const day = String(10 + i).padStart(2, '0');
+      await seedSession(env, { userId, deviceId, sessionId: `q${i}`, totalTokens: i, lastActivity: `2026-06-${day}T00:00:00.000Z` });
+    }
+    const res = await asViewer(userId, '/api/sessions?limit=2');
+    const body = (await res.json()) as { sessions: { sessionId: string }[]; nextCursor: string | null };
+    expect(body.sessions).toHaveLength(2);
+    expect(body.sessions[0]!.sessionId).toBe('q2');
+    expect(body.nextCursor).not.toBeNull();
+    const res2 = await asViewer(userId, `/api/sessions?limit=2&cursor=${encodeURIComponent(body.nextCursor!)}`);
+    const body2 = (await res2.json()) as { sessions: { sessionId: string }[]; nextCursor: string | null };
+    expect(body2.sessions[0]!.sessionId).toBe('q0');
+    expect(body2.nextCursor).toBeNull();
+  });
+
+  it('isolates users', async () => {
+    const { userId } = await seedUser(env);
+    const { deviceId } = await seedDevice(env, `sp2-${userId}@example.com`);
+    await seedSession(env, { userId, deviceId, sessionId: 'mine', lastActivity: '2026-06-20T00:00:00.000Z' });
+    const { userId: other } = await seedUser(env);
+    const { deviceId: od } = await seedDevice(env, `sp3-${other}@example.com`);
+    await seedSession(env, { userId: other, deviceId: od, sessionId: 'theirs', lastActivity: '2026-07-01T00:00:00.000Z' });
+    const res = await asViewer(userId, '/api/sessions');
+    const body = (await res.json()) as { sessions: { sessionId: string }[] };
+    expect(body.sessions.some((s) => s.sessionId === 'theirs')).toBe(false);
+  });
+});

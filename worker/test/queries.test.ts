@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { seedUser, seedDevice, seedSession } from './seed';
-import { summaryQuery } from '../src/queries';
+import { summaryQuery, sessionsPage } from '../src/queries';
 
 async function setupTwoDevicesTwoSources() {
   const { userId } = await seedUser(env);
@@ -91,5 +91,58 @@ describe('summaryQuery', () => {
     await seedSession(env, { userId, deviceId, projectPath: null, totalTokens: 7, totalCost: 0.1 });
     const s = await summaryQuery(env.DB, userId, {});
     expect(s.byProject.find((p) => p.projectPath === '(unknown)')?.totalTokens).toBe(7);
+  });
+});
+
+describe('sessionsPage', () => {
+  async function seedN(userId: string, deviceId: string, n: number) {
+    for (let i = 0; i < n; i++) {
+      const day = String(10 + i).padStart(2, '0');
+      await seedSession(env, {
+        userId, deviceId, source: 'claude', sessionId: `p${i}`,
+        totalTokens: i, totalCost: i / 10,
+        lastActivity: `2026-06-${day}T10:00:00.000Z`,
+      });
+    }
+  }
+
+  it('paginates descending with a stable cursor', async () => {
+    const { userId } = await seedUser(env);
+    const { deviceId } = await seedDevice(env, `pg-${userId}@example.com`);
+    await seedN(userId, deviceId, 5);
+    const first = await sessionsPage(env.DB, userId, {}, null, 2);
+    expect(first.sessions).toHaveLength(2);
+    expect(first.sessions[0]!.sessionId).toBe('p4'); // newest
+    expect(first.sessions[1]!.sessionId).toBe('p3');
+    expect(first.nextCursor).not.toBeNull();
+    const second = await sessionsPage(env.DB, userId, {}, first.nextCursor, 2);
+    expect(second.sessions[0]!.sessionId).toBe('p2');
+    expect(second.sessions[1]!.sessionId).toBe('p1');
+    const third = await sessionsPage(env.DB, userId, {}, second.nextCursor, 2);
+    expect(third.sessions).toHaveLength(1);
+    expect(third.sessions[0]!.sessionId).toBe('p0');
+    expect(third.nextCursor).toBeNull();
+  });
+
+  it('does not leak other users rows', async () => {
+    const { userId } = await seedUser(env);
+    const { deviceId } = await seedDevice(env, `pg2-${userId}@example.com`);
+    await seedN(userId, deviceId, 2);
+    const { userId: other } = await seedUser(env);
+    const { deviceId: od } = await seedDevice(env, `pg3-${other}@example.com`);
+    await seedSession(env, { userId: other, deviceId: od, sessionId: 'X', totalTokens: 1, lastActivity: '2026-07-01T00:00:00.000Z' });
+    const page = await sessionsPage(env.DB, userId, {}, null, 50);
+    expect(page.sessions.some((s) => s.sessionId === 'X')).toBe(false);
+    expect(page.sessions).toHaveLength(2);
+  });
+
+  it('applies filters', async () => {
+    const { userId } = await seedUser(env);
+    const { deviceId } = await seedDevice(env, `pg4-${userId}@example.com`);
+    await seedSession(env, { userId, deviceId, source: 'claude', sessionId: 'c', lastActivity: '2026-06-20T00:00:00.000Z' });
+    await seedSession(env, { userId, deviceId, source: 'codex', sessionId: 'x', lastActivity: '2026-06-21T00:00:00.000Z' });
+    const page = await sessionsPage(env.DB, userId, { source: 'codex' }, null, 50);
+    expect(page.sessions).toHaveLength(1);
+    expect(page.sessions[0]!.source).toBe('codex');
   });
 });

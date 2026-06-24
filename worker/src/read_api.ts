@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import * as v from 'valibot';
 import type { AppBindings } from './env';
 import { requireViewer } from './viewer';
-import { summaryQuery, type SummaryFilters } from './queries';
+import { summaryQuery, sessionsPage, clampLimit, type SummaryFilters } from './queries';
 
 export const readApiRoutes = new Hono<AppBindings>();
 
@@ -31,4 +31,14 @@ readApiRoutes.get('/api/summary', async (c) => {
   const filters = parseFilters(c);
   const summary = await summaryQuery(c.env.DB, userId, filters);
   return c.json(summary);
+});
+
+readApiRoutes.get('/api/sessions', async (c) => {
+  const { userId } = c.var.viewer;
+  const filters = parseFilters(c);
+  const raw = c.req.query();
+  const limit = clampLimit(raw.limit ? Number(raw.limit) : undefined);
+  const cursor = raw.cursor || null;
+  const page = await sessionsPage(c.env.DB, userId, filters, cursor, limit);
+  return c.json(page);
 });
