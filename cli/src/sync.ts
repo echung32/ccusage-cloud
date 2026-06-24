@@ -9,6 +9,7 @@ import {
   sessionKey,
   statePath as defaultStatePath,
 } from './state';
+import { redactProjects } from './redact';
 
 export interface SyncOpts {
   run?: Runner;
@@ -63,10 +64,12 @@ export async function syncOnce(
   const all: TaggedSession[] = [];
   for (const source of sources) all.push(...loadSessions(source, cfg.ccusageBin, opts.run));
 
+  const collected = cfg.redactProjects ? redactProjects(all) : all;
+
   const state = opts.full ? { hashes: {}, lastSyncAt: null } : loadState(path);
   const { changed, unchanged } = opts.full
-    ? { changed: all, unchanged: 0 }
-    : diffSessions(all, state);
+    ? { changed: collected, unchanged: 0 }
+    : diffSessions(collected, state);
 
   if (changed.length === 0) {
     saveState({ hashes: state.hashes, lastSyncAt: Date.now() }, path);

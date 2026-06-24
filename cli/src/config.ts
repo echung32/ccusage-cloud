@@ -6,6 +6,7 @@ export interface Config {
   serverUrl: string;
   token: string;
   ccusageBin: string;
+  redactProjects?: boolean;
 }
 
 export function configPath(): string {
