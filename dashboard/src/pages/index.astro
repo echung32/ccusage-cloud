@@ -1,0 +1,9 @@
+---
+import Base from '../layouts/Base.astro';
+import { Hello } from '../components/Hello';
+---
+<Base title="ccusage-cloud">
+  <main class="p-8">
+    <Hello name="cloud" client:load />
+  </main>
+</Base>
