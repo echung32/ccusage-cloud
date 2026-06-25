@@ -17,6 +17,9 @@ describe('LoginGate', () => {
     await userEvent.type(email, 'me@x.com');
     await userEvent.click(screen.getByRole('button', { name: /send magic link/i }));
     await waitFor(() => expect(screen.getByText(/check your inbox/i)).toBeInTheDocument());
-    expect(f).toHaveBeenCalledWith('/auth/request', expect.objectContaining({ method: 'POST' }));
+    // Exactly one POST to /auth/request — verifies no double-submit regression
+    const authRequests = f.mock.calls.filter(([url]: [string]) => url === '/auth/request');
+    expect(authRequests).toHaveLength(1);
+    expect(authRequests[0][1]).toEqual(expect.objectContaining({ method: 'POST' }));
   });
 });

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import Container from '@cloudscape-design/components/container';
 import Header from '@cloudscape-design/components/header';
 import Box from '@cloudscape-design/components/box';
-import SpaceBetween from '@cloudscape-design/components/space-between';
 import Form from '@cloudscape-design/components/form';
 import FormField from '@cloudscape-design/components/form-field';
 import Input from '@cloudscape-design/components/input';
@@ -38,7 +37,7 @@ export function LoginGate() {
     <Centered>
       <Container header={<Header variant="h2">Sign in to ccusage-cloud</Header>}>
         <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
-          <Form actions={<Button variant="primary" onClick={submit}>Send magic link</Button>}>
+          <Form actions={<Button variant="primary" formAction="none" onClick={submit}>Send magic link</Button>}>
             <FormField label="Email">
               <Input value={email} ariaLabel="email" type="email" placeholder="you@example.com"
                 onChange={({ detail }) => setEmail(detail.value)} />
