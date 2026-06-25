@@ -1,9 +1,10 @@
 // dashboard/src/lib/daterange.ts
 import type { DateRangePickerProps } from '@cloudscape-design/components/date-range-picker';
 
-type TimeUnit = 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
+/** Only ms-based units are supported; month/year are excluded due to calendar rollover issues. */
+type TimeUnit = 'second' | 'minute' | 'hour' | 'day' | 'week';
 
-const MS: Record<'second' | 'minute' | 'hour' | 'day' | 'week', number> = {
+const MS: Record<TimeUnit, number> = {
   second: 1000,
   minute: 60_000,
   hour: 3_600_000,
@@ -20,16 +21,6 @@ function endOfDayUtc(d: Date): string {
 }
 
 function subtract(now: Date, amount: number, unit: TimeUnit): Date {
-  if (unit === 'month') {
-    const d = new Date(now.getTime());
-    d.setUTCMonth(d.getUTCMonth() - amount);
-    return d;
-  }
-  if (unit === 'year') {
-    const d = new Date(now.getTime());
-    d.setUTCFullYear(d.getUTCFullYear() - amount);
-    return d;
-  }
   return new Date(now.getTime() - amount * MS[unit]);
 }
 
@@ -44,8 +35,11 @@ export function rangeToFilters(
       to: `${value.endDate.slice(0, 10)}T23:59:59.999Z`,
     };
   }
-  // relative
-  const from = subtract(now, value.amount, value.unit as TimeUnit);
+  // relative — guard against invalid input so this function never throws
+  const unit = value.unit as string;
+  if (!(unit in MS)) return { from: undefined, to: undefined };
+  if (!Number.isFinite(value.amount) || value.amount <= 0) return { from: undefined, to: undefined };
+  const from = subtract(now, value.amount, unit as TimeUnit);
   return { from: startOfDayUtc(from), to: endOfDayUtc(now) };
 }
 

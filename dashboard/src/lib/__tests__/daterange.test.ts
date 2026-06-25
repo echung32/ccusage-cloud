@@ -27,6 +27,21 @@ describe('rangeToFilters', () => {
   it('clears both bounds for a null value', () => {
     expect(rangeToFilters(null)).toEqual({ from: undefined, to: undefined });
   });
+
+  it('guards against NaN amount in relative range — returns cleared bounds', () => {
+    expect(rangeToFilters({ type: 'relative', amount: NaN, unit: 'day', key: '' }, NOW)).toEqual({
+      from: undefined,
+      to: undefined,
+    });
+  });
+
+  it('guards against unsupported unit (month) in relative range — returns cleared bounds', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(rangeToFilters({ type: 'relative', amount: 1, unit: 'month' as any, key: '' }, NOW)).toEqual({
+      from: undefined,
+      to: undefined,
+    });
+  });
 });
 
 describe('filtersToRange', () => {

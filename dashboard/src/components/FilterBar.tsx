@@ -13,8 +13,20 @@ const relativeOptions: DateRangePickerProps.RelativeOption[] = [
   { key: 'last-90-days', amount: 90, unit: 'day', type: 'relative' },
 ];
 
+const SUPPORTED_RELATIVE_UNITS = new Set(['second', 'minute', 'hour', 'day', 'week']);
+
 const isValidRange: DateRangePickerProps['isValidRange'] = (range) => {
-  if (!range || range.type !== 'absolute') return { valid: true };
+  if (!range) return { valid: true };
+  if (range.type === 'relative') {
+    if (!SUPPORTED_RELATIVE_UNITS.has(range.unit)) {
+      return { valid: false, errorMessage: 'Custom ranges support days and weeks only.' };
+    }
+    if (!Number.isFinite(range.amount) || range.amount <= 0) {
+      return { valid: false, errorMessage: 'Duration must be a positive number.' };
+    }
+    return { valid: true };
+  }
+  // absolute
   if (!range.startDate || !range.endDate) return { valid: false, errorMessage: 'Select a start and end date.' };
   if (range.startDate > range.endDate) return { valid: false, errorMessage: 'The start date must be before the end date.' };
   return { valid: true };
