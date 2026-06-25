@@ -2,7 +2,42 @@ import Select, { type SelectProps } from '@cloudscape-design/components/select';
 import Button from '@cloudscape-design/components/button';
 import SpaceBetween from '@cloudscape-design/components/space-between';
 import FormField from '@cloudscape-design/components/form-field';
+import DateRangePicker, { type DateRangePickerProps } from '@cloudscape-design/components/date-range-picker';
+import { rangeToFilters, filtersToRange } from '@/lib/daterange';
 import type { Filters } from '@/lib/types';
+
+const relativeOptions: DateRangePickerProps.RelativeOption[] = [
+  { key: 'last-7-days', amount: 7, unit: 'day', type: 'relative' },
+  { key: 'last-14-days', amount: 14, unit: 'day', type: 'relative' },
+  { key: 'last-30-days', amount: 30, unit: 'day', type: 'relative' },
+  { key: 'last-90-days', amount: 90, unit: 'day', type: 'relative' },
+];
+
+const isValidRange: DateRangePickerProps['isValidRange'] = (range) => {
+  if (!range || range.type !== 'absolute') return { valid: true };
+  if (!range.startDate || !range.endDate) return { valid: false, errorMessage: 'Select a start and end date.' };
+  if (range.startDate > range.endDate) return { valid: false, errorMessage: 'The start date must be before the end date.' };
+  return { valid: true };
+};
+
+const dateRangeI18n: DateRangePickerProps.I18nStrings = {
+  todayAriaLabel: 'Today',
+  nextMonthAriaLabel: 'Next month',
+  previousMonthAriaLabel: 'Previous month',
+  customRelativeRangeOptionLabel: 'Custom range',
+  customRelativeRangeOptionDescription: 'Set a custom range',
+  customRelativeRangeUnitLabel: 'unit of time',
+  customRelativeRangeDurationLabel: 'Duration',
+  formatRelativeRange: (e) => `Last ${e.amount} ${e.unit}${e.amount === 1 ? '' : 's'}`,
+  relativeModeTitle: 'Relative range',
+  absoluteModeTitle: 'Absolute range',
+  relativeRangeSelectionHeading: 'Choose a range',
+  startDateLabel: 'Start date',
+  endDateLabel: 'End date',
+  clearButtonLabel: 'Clear',
+  cancelButtonLabel: 'Cancel',
+  applyButtonLabel: 'Apply',
+};
 
 export function FilterBar({
   filters, sources, devices, onChange,
@@ -21,6 +56,17 @@ export function FilterBar({
       <FormField label="Device">
         <Select selectedOption={selDevice} ariaLabel="Device" options={deviceOptions}
           onChange={({ detail }) => set('device', String(detail.selectedOption.value ?? ''))} />
+      </FormField>
+      <FormField label="Date range">
+        <DateRangePicker
+          value={filtersToRange(filters)}
+          onChange={({ detail }) => onChange({ ...filters, ...rangeToFilters(detail.value) })}
+          relativeOptions={relativeOptions}
+          isValidRange={isValidRange}
+          i18nStrings={dateRangeI18n}
+          dateOnly
+          placeholder="Filter by date range"
+        />
       </FormField>
       <FormField label=" ">
         <Button onClick={() => onChange({})}>Clear</Button>

@@ -20,4 +20,15 @@ describe('FilterBar', () => {
     await userEvent.click(screen.getByRole('button', { name: /clear/i }));
     expect(onChange).toHaveBeenCalledWith({});
   });
+  it('renders the date-range control', () => {
+    render(<FilterBar filters={{}} sources={[]} devices={[]} onChange={vi.fn()} />);
+    // The DateRangePicker trigger exposes the placeholder text until a range is chosen.
+    expect(screen.getByText('Filter by date range')).toBeInTheDocument();
+  });
+  it('reflects an active range from filters on the trigger', () => {
+    render(<FilterBar filters={{ from: '2026-06-01T00:00:00.000Z', to: '2026-06-25T23:59:59.999Z' }} sources={[]} devices={[]} onChange={vi.fn()} />);
+    // Cloudscape renders the selected absolute range on the trigger button.
+    expect(screen.getByText(/2026-06-01/)).toBeInTheDocument();
+    expect(screen.getByText(/2026-06-25/)).toBeInTheDocument();
+  });
 });
