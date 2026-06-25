@@ -34,28 +34,49 @@ describe('POST /auth/request', () => {
   });
 });
 
-describe('GET /auth/callback + logout', () => {
-  it('consumes a token, sets a session cookie, redirects, and is single-use', async () => {
+async function postCallback(body: string) {
+  return SELF.fetch('https://example.com/auth/callback', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body,
+    redirect: 'manual',
+  });
+}
+
+describe('GET /auth/callback (confirm page) + POST (sign in) + logout', () => {
+  it('GET does not consume the token; POST consumes it, sets the cookie, redirects, single-use', async () => {
     await putLoginToken(env, 'logintok', 'cb@example.com');
-    const res = await SELF.fetch('https://example.com/auth/callback?token=logintok', { redirect: 'manual' });
+
+    // A bare GET (what crawlers/scanners do) must render a confirm page and NOT
+    // burn the single-use token.
+    const get = await SELF.fetch('https://example.com/auth/callback?token=logintok', { redirect: 'manual' });
+    expect(get.status).toBe(200);
+    const html = await get.text();
+    expect(html).toContain('method="POST"');
+    expect(html).toContain('action="/auth/callback"');
+    expect(html).toContain('logintok');
+    expect(await env.LOGIN_TOKENS.get('logintok')).not.toBeNull(); // still valid
+
+    // POST completes sign-in.
+    const res = await postCallback('token=logintok');
     expect(res.status).toBe(302);
     const cookie = res.headers.get('set-cookie') ?? '';
     expect(cookie).toContain('ccusage_session=');
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('SameSite=Lax');
 
-    // Token is single-use: a replay fails.
-    const replay = await SELF.fetch('https://example.com/auth/callback?token=logintok', { redirect: 'manual' });
-    expect(replay.status).toBe(401);
+    // Token is single-use: a replay POST fails.
+    expect((await postCallback('token=logintok')).status).toBe(401);
 
     // A user row was provisioned for the email.
     const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind('cb@example.com').first();
     expect(user).not.toBeNull();
   });
 
-  it('rejects a missing/invalid token', async () => {
+  it('GET without a token 401s; POST with missing/invalid token 401s', async () => {
     expect((await SELF.fetch('https://example.com/auth/callback', { redirect: 'manual' })).status).toBe(401);
-    expect((await SELF.fetch('https://example.com/auth/callback?token=nope', { redirect: 'manual' })).status).toBe(401);
+    expect((await postCallback('')).status).toBe(401);
+    expect((await postCallback('token=nope')).status).toBe(401);
   });
 
   it('logout clears the cookie', async () => {

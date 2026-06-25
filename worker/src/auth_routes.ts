@@ -41,8 +41,22 @@ authRoutes.post('/auth/request', async (c) => {
 
 export const SESSION_COOKIE = 'ccusage_session';
 
-authRoutes.get('/auth/callback', async (c) => {
+// A bare GET must NOT consume the single-use token. Email scanners and link
+// crawlers (observed in prod: CopyousBot) issue a GET on the magic link and would
+// burn the token before the human clicks, leaving the real click with "invalid or
+// expired token". Instead, render a minimal page that POSTs the token back to
+// complete sign-in: real browsers auto-submit via JS (with a <noscript> button as
+// fallback), while non-JS crawlers render the page and never POST, so the token
+// survives until the user actually clicks.
+authRoutes.get('/auth/callback', (c) => {
   const token = c.req.query('token');
+  if (!token) return c.json({ error: 'missing token' }, 401);
+  return c.html(signInConfirmPage(token));
+});
+
+authRoutes.post('/auth/callback', async (c) => {
+  const form = await c.req.parseBody();
+  const token = typeof form.token === 'string' ? form.token : '';
   if (!token) return c.json({ error: 'missing token' }, 401);
   const consumed = await consumeLoginToken(c.env, token);
   if (!consumed) return c.json({ error: 'invalid or expired token' }, 401);
@@ -76,3 +90,36 @@ authRoutes.post('/auth/logout', async (c) => {
   deleteCookie(c, SESSION_COOKIE, { path: '/' });
   return c.json({ ok: true });
 });
+
+function escapeHtmlAttr(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// Minimal interstitial that POSTs the magic-link token back to /auth/callback.
+// JS auto-submits for real browsers; the <noscript> button covers JS-disabled
+// users. Crawlers that only GET never reach the POST, so the token is preserved.
+function signInConfirmPage(token: string): string {
+  const t = escapeHtmlAttr(token);
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Signing in… — ccusage-cloud</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;color:#0f172a}form{text-align:center}button{font:inherit;margin-top:.75rem;padding:.6rem 1.2rem;border-radius:.5rem;border:1px solid #cbd5e1;background:#2563eb;color:#fff;cursor:pointer}</style>
+</head>
+<body>
+<form id="signin" method="POST" action="/auth/callback">
+<input type="hidden" name="token" value="${t}">
+<p>Signing you in…</p>
+<noscript><p>Click to finish signing in to ccusage-cloud:</p><button type="submit">Sign in</button></noscript>
+</form>
+<script>document.getElementById('signin').submit();</script>
+</body>
+</html>`;
+}
