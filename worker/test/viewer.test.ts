@@ -34,10 +34,13 @@ describe('requireUser', () => {
   });
 
   it('401s for a tampered (signature-invalid) token', async () => {
-    // Flip the last char of the signature segment → valid shape, bad signature,
-    // which jose rejects during verification.
-    const good = await mintToken({ sub: 'gh|x' });
-    const tampered = good.slice(0, -1) + (good.endsWith('A') ? 'B' : 'A');
+    // Replace the signature segment with an all-zero base64url string of the
+    // correct length (86 chars for a 64-byte EdDSA signature). All characters
+    // are significant in a fixed signature like this, so it never accidentally
+    // passes — unlike flipping only the last char, which encodes just 2
+    // significant bits and may leave the signature unchanged after rounding.
+    const [header, payload] = (await mintToken({ sub: 'gh|x' })).split('.');
+    const tampered = `${header}.${payload}.${'A'.repeat(86)}`;
     const res = await SELF.fetch('https://example.com/api/me', {
       headers: { authorization: `Bearer ${tampered}` },
     });
