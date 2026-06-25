@@ -1,38 +1,48 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import AppLayout from '@cloudscape-design/components/app-layout';
+import TopNavigation from '@cloudscape-design/components/top-navigation';
+import SideNavigation from '@cloudscape-design/components/side-navigation';
 
 const NAV = [
-  { href: '/overview', label: 'Overview' },
-  { href: '/sources', label: 'Sources & Models' },
-  { href: '/projects', label: 'Projects' },
-  { href: '/devices', label: 'Devices' },
-  { href: '/sessions', label: 'Sessions' },
-  { href: '/settings', label: 'Settings' },
+  { type: 'link' as const, text: 'Overview', href: '/overview' },
+  { type: 'link' as const, text: 'Sources & Models', href: '/sources' },
+  { type: 'link' as const, text: 'Projects', href: '/projects' },
+  { type: 'link' as const, text: 'Devices', href: '/devices' },
+  { type: 'link' as const, text: 'Sessions', href: '/sessions' },
+  { type: 'link' as const, text: 'Settings', href: '/settings' },
 ];
 
+function scopeHref(target: 'me' | 'group'): string {
+  const p = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  if (target === 'group') p.set('scope', 'group'); else p.delete('scope');
+  const path = typeof window !== 'undefined' ? window.location.pathname : '/overview';
+  const qs = p.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
 export function AppShell({ active, scope = 'me', children }: { active: string; scope?: 'me' | 'group'; children: ReactNode }) {
+  const [navOpen, setNavOpen] = useState(true);
   const groupHidden = new Set(['/projects', '/sessions']);
-  const nav = scope === 'group' ? NAV.filter((n) => !groupHidden.has(n.href)) : NAV;
-  const toggleHref = (s: 'me' | 'group') => {
-    const p = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-    if (s === 'group') p.set('scope', 'group'); else p.delete('scope');
-    const qs = p.toString();
-    return qs ? `?${qs}` : (typeof window !== 'undefined' ? window.location.pathname : '/overview');
-  };
+  const items = scope === 'group' ? NAV.filter((n) => !groupHidden.has(n.href)) : NAV;
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-slate-200">
-        <nav className="flex items-center gap-4 px-6 py-3 text-sm" aria-label="primary">
-          <span className="font-semibold">ccusage-cloud</span>
-          {nav.map((n) => (
-            <a key={n.href} href={n.href} className={n.href === active ? 'font-semibold text-slate-900' : 'text-slate-500 hover:text-slate-900'}>{n.label}</a>
-          ))}
-          <span className="ml-auto inline-flex overflow-hidden rounded-md border border-slate-300 text-xs">
-            <a href={toggleHref('me')} className={scope === 'me' ? 'bg-slate-900 px-2 py-1 text-white' : 'px-2 py-1 text-slate-600'}>Me</a>
-            <a href={toggleHref('group')} className={scope === 'group' ? 'bg-slate-900 px-2 py-1 text-white' : 'px-2 py-1 text-slate-600'}>Group</a>
-          </span>
-        </nav>
-      </header>
-      <main className="p-6">{children}</main>
-    </div>
+    <>
+      <div id="top-nav">
+        <TopNavigation
+          identity={{ href: '/overview', title: 'ccusage-cloud' }}
+          utilities={[
+            { type: 'button', text: 'Me', href: scopeHref('me') },
+            { type: 'button', text: 'Group', href: scopeHref('group') },
+          ]}
+        />
+      </div>
+      <AppLayout
+        headerSelector="#top-nav"
+        toolsHide
+        navigationOpen={navOpen}
+        onNavigationChange={({ detail }) => setNavOpen(detail.open)}
+        navigation={<SideNavigation activeHref={active} header={{ href: '/overview', text: 'ccusage-cloud' }} items={items} />}
+        content={children}
+      />
+    </>
   );
 }
