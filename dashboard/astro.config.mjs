@@ -5,5 +5,5 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   output: 'static',
   integrations: [react()],
-  vite: { plugins: [tailwindcss()] },
+  vite: { plugins: [tailwindcss()], ssr: { noExternal: ['@cloudscape-design/components', '@cloudscape-design/component-toolkit'] } },
 });
