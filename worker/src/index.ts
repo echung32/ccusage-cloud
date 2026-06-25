@@ -37,6 +37,8 @@ app.route('/', readApiRoutes);
 
 // Non-API paths are served by the static dashboard via the Assets binding.
 // Registered last so /health, /ingest, /auth/*, and /api/* always win.
+// With `not_found_handling: "none"`, unknown paths come back as 404 from the
+// asset layer and that status is propagated as-is (no SPA index.html shell).
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default app;
