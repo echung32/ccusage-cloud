@@ -1,6 +1,7 @@
 CREATE TABLE users (
   id              TEXT PRIMARY KEY,
-  email           TEXT NOT NULL UNIQUE,
+  email           TEXT,
+  name            TEXT,
   public_to_group INTEGER NOT NULL DEFAULT 0,
   created_at      INTEGER NOT NULL
 );
