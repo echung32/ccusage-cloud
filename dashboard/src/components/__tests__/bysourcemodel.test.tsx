@@ -19,5 +19,8 @@ describe('BySourceModel', () => {
     // it as cell text — use getAllByText since multiple DOM nodes contain the value.
     await waitFor(() => expect(screen.getAllByText('claude-code').length).toBeGreaterThan(0));
     expect(screen.getAllByText('claude-opus-4-8').length).toBeGreaterThan(0);
+    // Cloudscape BarChart renders an <svg aria-label="..."> — assert chart is present, not just the table.
+    expect(screen.getByLabelText('Cost by source')).toBeInTheDocument();
+    expect(screen.getByLabelText('Cost by model')).toBeInTheDocument();
   });
 });

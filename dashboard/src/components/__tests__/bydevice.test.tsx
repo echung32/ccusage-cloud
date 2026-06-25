@@ -15,5 +15,7 @@ describe('ByDevice', () => {
     }));
     render(<ByDevice />);
     await waitFor(() => expect(screen.getAllByText('work-laptop').length).toBeGreaterThan(0));
+    // Cloudscape PieChart renders an <svg aria-label="..."> — assert chart is present, not just the table.
+    expect(screen.getByLabelText('Device contribution by cost')).toBeInTheDocument();
   });
 });
