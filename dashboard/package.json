@@ -15,20 +15,11 @@
     "@cloudscape-design/collection-hooks": "^1.0.99",
     "@cloudscape-design/components": "^3.0.1316",
     "@cloudscape-design/global-styles": "^1.0.61",
-    "@radix-ui/react-slot": "^1.1.0",
-    "@radix-ui/react-switch": "^1.1.0",
-    "@radix-ui/react-tabs": "^1.1.0",
     "astro": "^5.0.0",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.0",
-    "lucide-react": "^0.460.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "recharts": "^2.13.0",
-    "tailwind-merge": "^2.5.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.0",
@@ -36,7 +27,6 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "jsdom": "^25.0.0",
-    "tailwindcss": "^4.0.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   }
