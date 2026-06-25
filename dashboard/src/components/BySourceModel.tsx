@@ -14,12 +14,12 @@ import { AppShell } from '@/components/AppShell';
 import { fmtInt, fmtUsd } from '@/lib/format';
 
 export function BySourceModel() {
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>(() => readFiltersFromUrl());
   const [me, setMe] = useState<Me | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { setFilters(readFiltersFromUrl()); getMe().then(setMe).catch(() => setMe(null)); }, []);
+  useEffect(() => { getMe().then(setMe).catch(() => setMe(null)); }, []);
   useEffect(() => { setLoading(true); getSummary(filters).then(setSummary).catch(() => setSummary(null)).finally(() => setLoading(false)); }, [filters]);
   const onChange = useCallback((f: Filters) => { writeFiltersToUrl(f); setFilters(f); }, []);
 
