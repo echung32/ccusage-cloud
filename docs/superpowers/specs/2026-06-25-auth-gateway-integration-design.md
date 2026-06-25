@@ -172,17 +172,63 @@ hardcoded in two places.
 
 ## Testing
 
-- **Unit (`worker/test/viewer.test.ts`)** with `vi.mock('auth-verify')`:
-  - valid `VerifiedUser` → provisions a `users` row + sets `c.var.viewer.userId = sub`.
-  - package throws a `Response` → propagated as 401.
-  - package throws a non-`Response` error → middleware returns 503.
-  - provisioning is idempotent: two requests for the same `sub` create one row.
-- **Dashboard:** `json()` on 401 → triggers redirect (mock `window.location`); the
-  `returned=1` guard renders the not-authorized terminal state.
-- **Remove** obsolete magic-link tests: `worker/test/auth_routes.test.ts`,
-  `dashboard/src/components/__tests__/logingate.test.tsx`.
-- **Rewrite** `dashboard/e2e/login-overview.test.tsx`: with a valid cookie/Bearer the
-  overview loads; without one, the gate redirects to the gateway.
+The worker tests are **integration tests** (`SELF.fetch` runs the real worker in
+workerd), where module-mocking `auth-verify` is unreliable. So viewer
+authentication in tests exercises the **real verification path**: a test helper
+mints Ed25519-signed JWTs with `jose` (a direct dep via `auth-verify`'s peer dep),
+and `fetchMock` (from `cloudflare:test`) serves a matching JWKS. **No production
+auth bypass is added.**
+
+### Test helper (`worker/test/auth-fixture.ts`)
+
+- Generates one Ed25519 keypair (module scope), exports its public JWK with
+  `kid: 'test-key'`, `alg: 'EdDSA'`, `use: 'sig'`.
+- `installJwks()` — registers a **persistent** `fetchMock` interceptor for
+  `GET https://auth.ethanchung.dev/.well-known/jwks.json` returning `{ keys: [jwk] }`
+  (persistent because `auth-verify`'s `createRemoteJWKSet` caches and the worker
+  isolate is reused across a file's tests).
+- `mintToken({ sub, email?, name?, scopes? })` — signs a JWT with issuer
+  `https://auth.ethanchung.dev`, audience `fleet`, the given `sub`, 5-minute expiry.
+- `authFetch(path, sub, init?)` — `SELF.fetch` with `Authorization: Bearer <token>`.
+
+### Worker tests
+
+- **`worker/test/viewer.test.ts`** (rewritten — the core auth tests):
+  - no token → 401.
+  - valid token → provisions a `users` row keyed by `sub` + sets
+    `c.var.viewer.userId = sub` (assert via `/api/me`).
+  - malformed/expired token (real `jose` verification) → 401.
+  - JWKS endpoint unreachable (interceptor returns 500) → middleware returns **503**,
+    not 401.
+  - provisioning idempotent: two `authFetch` calls for the same `sub` → one row.
+- **`api.test.ts`, `read-api.test.ts`, `read-api-scope.test.ts`**: replace
+  `putViewerSession` + `cookie` with `authFetch(path, sub)` (and seed sessions/devices
+  with `user_id = sub`).
+- **`migration.test.ts`**: drop `allowed_emails` from the expected-tables assertion;
+  assert `users` has a nullable `name` column.
+- **Delete**: `worker/test/auth_routes.test.ts` (magic-link routes),
+  `worker/test/email.test.ts` (email removed).
+
+### Test harness changes
+
+- **`worker/test/seed.ts`**: remove the `allowed_emails` inserts from `seedDevice`
+  and `seedUser` (table is gone). Other fields unchanged; existing
+  query/ingest/group-summary tests that only seed DB rows keep working.
+- **`worker/vitest.config.ts`**: drop `LOGIN_TOKENS` and `VIEWER_SESSIONS` from
+  `kvNamespaces` (keep `RATE_LIMITS`).
+
+### Dashboard tests
+
+- **Delete** `dashboard/src/components/__tests__/logingate.test.tsx` (email-form
+  test); replace with a test that the slim `LoginGate` redirects on no-session and
+  renders the not-authorized state when `returned=1` is present (mock `@/lib/api`
+  and `window.location`).
+- **`json()` 401 redirect**: unit-test that a 401 response triggers
+  `window.location.href` to the gateway `/authorize` URL with an encoded
+  `redirect_uri` (mock `window.location`).
+- **Rewrite** `dashboard/e2e/login-overview.test.tsx`: with `getMe` resolving, the
+  overview loads; with `getMe` 401-ing, the gate redirects to the gateway.
+- Component tests that mock `@/lib/api` (charts/tables) are unaffected.
 
 ## Out of scope
 
