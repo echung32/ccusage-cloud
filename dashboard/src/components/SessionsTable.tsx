@@ -30,6 +30,37 @@ const filteringProperties = [
   { key: 'projectPath', propertyLabel: 'Project', groupValuesLabel: 'Projects', operators: ['=', '!=', ':', '!:'] },
 ];
 
+const propertyFilterI18n = {
+  filteringAriaLabel: 'Find sessions',
+  dismissAriaLabel: 'Dismiss',
+  filteringPlaceholder: 'Filter sessions',
+  groupValuesText: 'Values',
+  groupPropertiesText: 'Properties',
+  operatorsText: 'Operators',
+  operationAndText: 'and',
+  operationOrText: 'or',
+  operatorLessText: 'Less than',
+  operatorLessOrEqualText: 'Less than or equal',
+  operatorGreaterText: 'Greater than',
+  operatorGreaterOrEqualText: 'Greater than or equal',
+  operatorContainsText: 'Contains',
+  operatorDoesNotContainText: 'Does not contain',
+  operatorEqualsText: 'Equals',
+  operatorDoesNotEqualText: 'Does not equal',
+  editTokenHeader: 'Edit filter',
+  propertyText: 'Property',
+  operatorText: 'Operator',
+  valueText: 'Value',
+  cancelActionText: 'Cancel',
+  applyActionText: 'Apply',
+  allPropertiesLabel: 'All properties',
+  tokenLimitShowMore: 'Show more',
+  tokenLimitShowFewer: 'Show fewer',
+  clearFiltersText: 'Clear filters',
+  removeTokenButtonAriaLabel: () => 'Remove token',
+  enteredTextLabel: (text: string) => `Use: "${text}"`,
+} as const;
+
 export function SessionsTable() {
   const [filters, setFilters] = useState<Filters>(() => readFiltersFromUrl());
   const [me, setMe] = useState<Me | null>(null);
@@ -82,7 +113,7 @@ export function SessionsTable() {
           <Table {...collectionProps} items={items} columnDefinitions={columnDefinitions}
             trackBy={(s) => `${s.source}:${s.sessionId}`} variant="full-page" stickyHeader loading={loading} loadingText="Loading"
             header={<Header counter={`(${rows.length})`}>Sessions</Header>}
-            filter={<PropertyFilter {...propertyFilterProps} filteringPlaceholder="Filter sessions" countText={`${filteredItemsCount} matches`} />}
+            filter={<PropertyFilter {...propertyFilterProps} i18nStrings={propertyFilterI18n} filteringPlaceholder="Filter sessions" countText={`${filteredItemsCount} matches`} />}
             footer={cursor ? <Button onClick={loadMore} disabled={loading}>Load more</Button> : undefined} />
         </SpaceBetween>
       </ContentLayout>

@@ -24,5 +24,8 @@ describe('Overview', () => {
     await waitFor(() => expect(screen.getByText('1,465')).toBeInTheDocument());
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText(/\$3\.50/)).toBeInTheDocument();
+    // Cloudscape LineChart renders an <svg aria-label="..."> — assert chart is present, not just the table.
+    expect(screen.getByLabelText('Tokens over time')).toBeInTheDocument();
+    expect(screen.getByLabelText('Cost over time')).toBeInTheDocument();
   });
 });
