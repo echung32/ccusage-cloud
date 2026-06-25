@@ -6,21 +6,17 @@ import { LoginGate } from '../LoginGate';
 afterEach(() => vi.restoreAllMocks());
 
 describe('LoginGate', () => {
-  it('shows the email form when not authenticated', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 401 })));
-    render(<LoginGate />);
-    await waitFor(() => expect(screen.getByLabelText('email')).toBeInTheDocument());
-  });
-
-  it('submits the email and confirms', async () => {
-    const f = vi.fn()
-      .mockResolvedValueOnce(new Response('{}', { status: 401 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+  it('shows the email form when anonymous and sends a magic link', async () => {
+    const f = vi.fn().mockImplementation((url: string) => {
+      if (url.startsWith('/api/me')) return Promise.resolve(new Response('{}', { status: 401 }));
+      return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    });
     vi.stubGlobal('fetch', f);
     render(<LoginGate />);
-    await waitFor(() => screen.getByLabelText('email'));
-    await userEvent.type(screen.getByLabelText('email'), 'a@b.c');
-    await userEvent.click(screen.getByRole('button', { name: /send/i }));
+    const email = await screen.findByLabelText('email');
+    await userEvent.type(email, 'me@x.com');
+    await userEvent.click(screen.getByRole('button', { name: /send magic link/i }));
     await waitFor(() => expect(screen.getByText(/check your inbox/i)).toBeInTheDocument());
+    expect(f).toHaveBeenCalledWith('/auth/request', expect.objectContaining({ method: 'POST' }));
   });
 });
