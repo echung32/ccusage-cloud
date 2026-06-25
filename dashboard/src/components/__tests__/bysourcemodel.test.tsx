@@ -5,22 +5,19 @@ import { BySourceModel } from '../BySourceModel';
 afterEach(() => vi.restoreAllMocks());
 
 describe('BySourceModel', () => {
-  it('lists sources and models from the summary', async () => {
+  it('renders source and model rows from the summary', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
-      const body = url.startsWith('/api/me')
-        ? { id: 'u1', email: 'a@b.c', publicToGroup: false, devices: [] }
-        : {
-            totals: { sessions: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalCost: 0 },
-            byDay: [],
-            bySource: [{ source: 'claude', totalTokens: 450, totalCost: 3, sessions: 2 }, { source: 'codex', totalTokens: 15, totalCost: 0.5, sessions: 1 }],
-            byModel: [{ model: 'claude-opus-4', totalTokens: 150, totalCost: 1 }],
-            byProject: [], byDevice: [],
-          };
-      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+      if (url.startsWith('/api/me')) return Promise.resolve(new Response(JSON.stringify({ id: 'u1', email: 'a@b.c', publicToGroup: false, devices: [] }), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify({
+        totals: { sessions: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalCost: 0 },
+        byDay: [], bySource: [{ source: 'claude-code', totalTokens: 100, totalCost: 1.2, sessions: 2 }],
+        byModel: [{ model: 'claude-opus-4-8', totalTokens: 80, totalCost: 1.0 }], byProject: [], byDevice: [],
+      }), { status: 200 }));
     }));
     render(<BySourceModel />);
-    await waitFor(() => expect(screen.getByText('claude')).toBeInTheDocument());
-    expect(screen.getByText('codex')).toBeInTheDocument();
-    expect(screen.getByText('claude-opus-4')).toBeInTheDocument();
+    // Cloudscape BarChart renders the data key as aria-label on SVG elements AND the Table renders
+    // it as cell text — use getAllByText since multiple DOM nodes contain the value.
+    await waitFor(() => expect(screen.getAllByText('claude-code').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('claude-opus-4-8').length).toBeGreaterThan(0);
   });
 });

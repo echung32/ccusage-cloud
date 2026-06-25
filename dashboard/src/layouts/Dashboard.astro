@@ -1,5 +1,6 @@
 ---
-import '../styles/global.css';
+import '@cloudscape-design/global-styles/index.css';
+import { ClientRouter } from 'astro:transitions';
 interface Props { title?: string }
 const { title = 'ccusage-cloud' } = Astro.props;
 ---
@@ -9,6 +10,7 @@ const { title = 'ccusage-cloud' } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
+    <ClientRouter />
   </head>
   <body>
     <slot />

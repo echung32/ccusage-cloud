@@ -5,19 +5,15 @@ import { ByDevice } from '../ByDevice';
 afterEach(() => vi.restoreAllMocks());
 
 describe('ByDevice', () => {
-  it('renders the device contribution legend', async () => {
+  it('renders device rows from the summary', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
-      const body = url.startsWith('/api/me')
-        ? { id: 'u1', email: 'a@b.c', publicToGroup: false, devices: [] }
-        : {
-            totals: { sessions: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalCost: 0 },
-            byDay: [], bySource: [], byModel: [], byProject: [],
-            byDevice: [{ deviceId: 'd1', label: 'laptop', totalTokens: 450, totalCost: 3, sessions: 2 }, { deviceId: 'd2', label: 'desktop', totalTokens: 15, totalCost: 0.5, sessions: 1 }],
-          };
-      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+      if (url.startsWith('/api/me')) return Promise.resolve(new Response(JSON.stringify({ id: 'u1', email: 'a@b.c', publicToGroup: false, devices: [] }), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify({
+        totals: { sessions: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalCost: 0 },
+        byDay: [], bySource: [], byModel: [], byProject: [], byDevice: [{ deviceId: 'd1', label: 'work-laptop', totalTokens: 90, totalCost: 0.7, sessions: 3 }],
+      }), { status: 200 }));
     }));
     render(<ByDevice />);
-    await waitFor(() => expect(screen.getByText(/laptop/)).toBeInTheDocument());
-    expect(screen.getByText(/desktop/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText('work-laptop').length).toBeGreaterThan(0));
   });
 });

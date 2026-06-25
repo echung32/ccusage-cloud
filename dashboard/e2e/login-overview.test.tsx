@@ -30,7 +30,7 @@ describe.skipIf(!canRun)('e2e: login -> overview', () => {
 
     // Overview renders the totals for the authenticated viewer.
     render(<Overview />);
-    await waitFor(() => expect(screen.getByText('1000')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('1,000')).toBeInTheDocument());
     expect(screen.getByText('7')).toBeInTheDocument();
     expect(screen.getByText(/\$9\.99/)).toBeInTheDocument();
   });

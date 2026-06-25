@@ -1,7 +1,7 @@
 ---
-import Base from '../layouts/Base.astro';
+import Dashboard from '../layouts/Dashboard.astro';
 import { ByProject } from '../components/ByProject';
 ---
-<Base title="Projects — ccusage-cloud">
-  <ByProject client:load />
-</Base>
+<Dashboard title="Projects — ccusage-cloud">
+  <ByProject client:only="react" />
+</Dashboard>

@@ -1,49 +1,63 @@
 import { useEffect, useState, useCallback } from 'react';
+import ContentLayout from '@cloudscape-design/components/content-layout';
+import Header from '@cloudscape-design/components/header';
+import Container from '@cloudscape-design/components/container';
+import SpaceBetween from '@cloudscape-design/components/space-between';
+import Table from '@cloudscape-design/components/table';
+import Button from '@cloudscape-design/components/button';
+import Box from '@cloudscape-design/components/box';
+import Alert from '@cloudscape-design/components/alert';
+import PropertyFilter from '@cloudscape-design/components/property-filter';
+import { useCollection } from '@cloudscape-design/collection-hooks';
 import { getMe, getSessions } from '@/lib/api';
 import type { Me, SessionItem } from '@/lib/types';
 import { readFiltersFromUrl, writeFiltersToUrl, type Filters } from '@/lib/filters';
 import { FilterBar } from '@/components/FilterBar';
 import { AppShell } from '@/components/AppShell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Table, THead, TBody, TR, TH, TD } from '@/components/ui/table';
+import { fmtInt, fmtUsd, fmtTime } from '@/lib/format';
 
-type SortKey = 'lastActivity' | 'totalTokens' | 'totalCost';
+const columnDefinitions = [
+  { id: 'source', header: 'Source', cell: (s: SessionItem) => s.source, sortingField: 'source' },
+  { id: 'sessionId', header: 'Session', cell: (s: SessionItem) => s.sessionId, sortingField: 'sessionId' },
+  { id: 'lastActivity', header: 'Last activity', cell: (s: SessionItem) => fmtTime(s.lastActivity), sortingField: 'lastActivity' },
+  { id: 'totalTokens', header: 'Tokens', cell: (s: SessionItem) => fmtInt(s.totalTokens), sortingField: 'totalTokens' },
+  { id: 'totalCost', header: 'Cost', cell: (s: SessionItem) => fmtUsd(s.totalCost), sortingField: 'totalCost' },
+  { id: 'projectPath', header: 'Project', cell: (s: SessionItem) => s.projectPath ?? '(unknown)', sortingField: 'projectPath' },
+];
+
+const filteringProperties = [
+  { key: 'source', propertyLabel: 'Source', groupValuesLabel: 'Sources', operators: ['=', '!=', ':', '!:'] },
+  { key: 'projectPath', propertyLabel: 'Project', groupValuesLabel: 'Projects', operators: ['=', '!=', ':', '!:'] },
+];
 
 export function SessionsTable() {
   const [filters, setFilters] = useState<Filters>(() => readFiltersFromUrl());
   const [me, setMe] = useState<Me | null>(null);
   const [rows, setRows] = useState<SessionItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
-  const [sort, setSort] = useState<SortKey>('lastActivity');
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if ((filters.scope ?? 'me') === 'group') return;
-    getMe().then(setMe).catch(() => setMe(null));
-  }, [filters.scope]);
-
+  const [loading, setLoading] = useState(true);
   const scope = filters.scope ?? 'me';
 
+  useEffect(() => { if (scope === 'group') return; getMe().then(setMe).catch(() => setMe(null)); }, [scope]);
   const loadFirst = useCallback((f: Filters) => {
     setLoading(true);
-    getSessions(f)
-      .then((page) => { setRows(page.sessions); setCursor(page.nextCursor); })
-      .catch(() => { setRows([]); setCursor(null); })
-      .finally(() => setLoading(false));
+    getSessions(f).then((page) => { setRows(page.sessions); setCursor(page.nextCursor); })
+      .catch(() => { setRows([]); setCursor(null); }).finally(() => setLoading(false));
   }, []);
-
-  useEffect(() => {
-    if (scope === 'group') return; // overall-only: no session breakdown for the group
-    loadFirst(filters);
-  }, [filters, loadFirst, scope]);
-
+  useEffect(() => { if (scope === 'group') return; loadFirst(filters); }, [filters, loadFirst, scope]);
   const onChange = useCallback((f: Filters) => { writeFiltersToUrl(f); setFilters(f); }, []);
+
+  const { items, collectionProps, propertyFilterProps, filteredItemsCount } = useCollection(rows, {
+    propertyFiltering: { filteringProperties, empty: <Box textAlign="center" color="inherit">No sessions</Box>, noMatch: <Box textAlign="center" color="inherit">No matches</Box> },
+    sorting: { defaultState: { sortingColumn: columnDefinitions[2], isDescending: true } },
+  });
 
   if (scope === 'group') {
     return (
       <AppShell active="/sessions" scope="group">
-        <p className="p-4 text-sm text-slate-600">Session list is only available in <strong>My</strong> view. Switch scope to "Me".</p>
+        <ContentLayout header={<Header variant="h1">Sessions</Header>}>
+          <Alert type="info">Session list is only available in <b>My view</b>. Switch scope to "Me".</Alert>
+        </ContentLayout>
       </AppShell>
     );
   }
@@ -51,59 +65,27 @@ export function SessionsTable() {
   function loadMore() {
     if (!cursor) return;
     setLoading(true);
-    getSessions(filters, cursor)
-      .then((page) => { setRows((prev) => [...prev, ...page.sessions]); setCursor(page.nextCursor); })
-      .catch(() => { /* keep current */ })
-      .finally(() => setLoading(false));
+    getSessions(filters, cursor).then((page) => { setRows((prev) => [...prev, ...page.sessions]); setCursor(page.nextCursor); })
+      .catch(() => { /* keep current */ }).finally(() => setLoading(false));
   }
-
-  const sorted = [...rows].sort((a, b) => {
-    if (sort === 'lastActivity') return String(b.lastActivity ?? '').localeCompare(String(a.lastActivity ?? ''));
-    return (b[sort] as number) - (a[sort] as number);
-  });
 
   const sources = me ? [] : [];
   const devices = me?.devices.map((d) => ({ id: d.id, label: d.label })) ?? [];
 
   return (
     <AppShell active="/sessions" scope={scope}>
-      <div className="space-y-6">
-        <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
-        <Card>
-          <CardHeader><CardTitle>Sessions</CardTitle></CardHeader>
-          <CardContent>
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Source</TH>
-                  <TH>Session</TH>
-                  <TH><button onClick={() => setSort('lastActivity')}>Last activity</button></TH>
-                  <TH><button onClick={() => setSort('totalTokens')}>Tokens</button></TH>
-                  <TH><button onClick={() => setSort('totalCost')}>Cost</button></TH>
-                  <TH>Project</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {sorted.map((s) => (
-                  <TR key={`${s.source}:${s.sessionId}`}>
-                    <TD>{s.source}</TD>
-                    <TD className="font-mono">{s.sessionId}</TD>
-                    <TD>{s.lastActivity ?? '—'}</TD>
-                    <TD>{s.totalTokens}</TD>
-                    <TD>${s.totalCost.toFixed(2)}</TD>
-                    <TD className="font-mono">{s.projectPath ?? '(unknown)'}</TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-            {cursor && (
-              <div className="mt-4">
-                <Button variant="outline" size="sm" onClick={loadMore} disabled={loading}>Load more</Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <ContentLayout header={<Header variant="h1">Sessions</Header>}>
+        <SpaceBetween size="l">
+          <Container header={<Header variant="h2">Filters</Header>}>
+            <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
+          </Container>
+          <Table {...collectionProps} items={items} columnDefinitions={columnDefinitions}
+            trackBy={(s) => `${s.source}:${s.sessionId}`} variant="full-page" stickyHeader loading={loading} loadingText="Loading"
+            header={<Header counter={`(${rows.length})`}>Sessions</Header>}
+            filter={<PropertyFilter {...propertyFilterProps} filteringPlaceholder="Filter sessions" countText={`${filteredItemsCount} matches`} />}
+            footer={cursor ? <Button onClick={loadMore} disabled={loading}>Load more</Button> : undefined} />
+        </SpaceBetween>
+      </ContentLayout>
     </AppShell>
   );
 }

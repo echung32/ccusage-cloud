@@ -1,71 +1,70 @@
 import { useEffect, useState, useCallback } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import ContentLayout from '@cloudscape-design/components/content-layout';
+import Header from '@cloudscape-design/components/header';
+import Container from '@cloudscape-design/components/container';
+import SpaceBetween from '@cloudscape-design/components/space-between';
+import BarChart from '@cloudscape-design/components/bar-chart';
+import Table from '@cloudscape-design/components/table';
+import Box from '@cloudscape-design/components/box';
 import { getMe, getSummary } from '@/lib/api';
-import type { Summary, Me } from '@/lib/types';
+import type { Summary, Me, BySource, ByModel } from '@/lib/types';
 import { readFiltersFromUrl, writeFiltersToUrl, type Filters } from '@/lib/filters';
 import { FilterBar } from '@/components/FilterBar';
 import { AppShell } from '@/components/AppShell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { fmtInt, fmtUsd } from '@/lib/format';
 
 export function BySourceModel() {
-  const [filters, setFilters] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>(() => readFiltersFromUrl());
   const [me, setMe] = useState<Me | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { setFilters(readFiltersFromUrl()); getMe().then(setMe).catch(() => setMe(null)); }, []);
-  useEffect(() => { getSummary(filters).then(setSummary).catch(() => setSummary(null)); }, [filters]);
+  useEffect(() => { getMe().then(setMe).catch(() => setMe(null)); }, []);
+  useEffect(() => { setLoading(true); getSummary(filters).then(setSummary).catch(() => setSummary(null)).finally(() => setLoading(false)); }, [filters]);
   const onChange = useCallback((f: Filters) => { writeFiltersToUrl(f); setFilters(f); }, []);
 
   const sources = summary?.bySource.map((s) => s.source) ?? [];
   const devices = me?.devices.map((d) => ({ id: d.id, label: d.label })) ?? [];
+  const bySource = summary?.bySource ?? [];
+  const byModel = summary?.byModel ?? [];
+  const empty = <Box textAlign="center" color="inherit">No data</Box>;
 
   return (
     <AppShell active="/sources" scope={filters.scope ?? 'me'}>
-      <div className="space-y-6">
-        <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
-        <Card>
-          <CardHeader><CardTitle>By source</CardTitle></CardHeader>
-          <CardContent>
-            <div style={{ width: '100%', height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={summary?.bySource ?? []}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="source" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="totalCost" fill="#2563eb" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <ul className="mt-2 text-sm text-slate-600">
-              {(summary?.bySource ?? []).map((s) => (
-                <li key={s.source}>{s.source}: {s.totalTokens} tokens, ${s.totalCost.toFixed(2)}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>By model</CardTitle></CardHeader>
-          <CardContent>
-            <div style={{ width: '100%', height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={summary?.byModel ?? []}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="model" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="totalCost" fill="#0f172a" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <ul className="mt-2 text-sm text-slate-600">
-              {(summary?.byModel ?? []).map((m) => (
-                <li key={m.model}><span>{m.model}</span>: {m.totalTokens} tokens, ${m.totalCost.toFixed(2)}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
+      <ContentLayout header={<Header variant="h1">Sources &amp; Models</Header>}>
+        <SpaceBetween size="l">
+          <Container header={<Header variant="h2">Filters</Header>}>
+            <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
+          </Container>
+          <Container header={<Header variant="h2">By source</Header>}>
+            <SpaceBetween size="m">
+              <BarChart series={[{ title: 'Cost (USD)', type: 'bar', data: bySource.map((s) => ({ x: s.source, y: s.totalCost })) }]}
+                xScaleType="categorical" height={260} xTitle="Source" yTitle="USD" ariaLabel="Cost by source"
+                statusType={loading ? 'loading' : 'finished'} hideFilter hideLegend empty={empty} />
+              <Table variant="embedded" items={bySource} trackBy="source" loading={loading} loadingText="Loading"
+                empty={empty} columnDefinitions={[
+                  { id: 'source', header: 'Source', cell: (s: BySource) => s.source },
+                  { id: 'tokens', header: 'Tokens', cell: (s: BySource) => fmtInt(s.totalTokens) },
+                  { id: 'cost', header: 'Cost', cell: (s: BySource) => fmtUsd(s.totalCost) },
+                  { id: 'sessions', header: 'Sessions', cell: (s: BySource) => fmtInt(s.sessions) },
+                ]} />
+            </SpaceBetween>
+          </Container>
+          <Container header={<Header variant="h2">By model</Header>}>
+            <SpaceBetween size="m">
+              <BarChart series={[{ title: 'Cost (USD)', type: 'bar', data: byModel.map((m) => ({ x: m.model, y: m.totalCost })) }]}
+                xScaleType="categorical" height={260} xTitle="Model" yTitle="USD" ariaLabel="Cost by model"
+                statusType={loading ? 'loading' : 'finished'} hideFilter hideLegend empty={empty} />
+              <Table variant="embedded" items={byModel} trackBy="model" loading={loading} loadingText="Loading"
+                empty={empty} columnDefinitions={[
+                  { id: 'model', header: 'Model', cell: (m: ByModel) => m.model },
+                  { id: 'tokens', header: 'Tokens', cell: (m: ByModel) => fmtInt(m.totalTokens) },
+                  { id: 'cost', header: 'Cost', cell: (m: ByModel) => fmtUsd(m.totalCost) },
+                ]} />
+            </SpaceBetween>
+          </Container>
+        </SpaceBetween>
+      </ContentLayout>
     </AppShell>
   );
 }

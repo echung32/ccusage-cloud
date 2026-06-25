@@ -13,7 +13,7 @@ describe('AppShell scope', () => {
     expect(screen.queryByRole('link', { name: 'Projects' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Sessions' })).not.toBeInTheDocument();
   });
-  it('renders a me/group toggle', () => {
+  it('renders a me/group toggle as links', () => {
     render(<AppShell active="/overview" scope="me"><div /></AppShell>);
     expect(screen.getByRole('link', { name: /group/i })).toBeInTheDocument();
   });

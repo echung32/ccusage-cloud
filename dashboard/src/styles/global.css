@@ -1,9 +1,0 @@
-@import "tailwindcss";
-
-:root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
-  --border: 214 32% 91%;
-}
-body { @apply bg-white text-slate-900; }

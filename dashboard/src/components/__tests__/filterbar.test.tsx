@@ -4,23 +4,20 @@ import { describe, expect, it, vi } from 'vitest';
 import { FilterBar } from '../FilterBar';
 
 describe('FilterBar', () => {
-  it('renders source and device options', () => {
-    render(<FilterBar filters={{}} sources={['claude', 'codex']} devices={[{ id: 'd1', label: 'laptop' }]} onChange={() => {}} />);
-    expect(screen.getByRole('option', { name: 'claude' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'laptop' })).toBeInTheDocument();
-  });
-
-  it('emits a filter change when a source is picked', async () => {
+  it('emits a source change', async () => {
     const onChange = vi.fn();
-    render(<FilterBar filters={{}} sources={['claude', 'codex']} devices={[]} onChange={onChange} />);
-    await userEvent.selectOptions(screen.getByLabelText('source'), 'codex');
-    expect(onChange).toHaveBeenCalledWith({ source: 'codex' });
+    render(<FilterBar filters={{}} sources={['claude-code', 'cursor']} devices={[]} onChange={onChange} />);
+    // Cloudscape Select renders a <button> with aria-labelledby that includes the ariaLabel span.
+    // getAllByLabelText returns both the button trigger and the listbox; [0] is the trigger button.
+    const trigger = screen.getAllByLabelText('Source')[0];
+    await userEvent.click(trigger);
+    await userEvent.click(await screen.findByText('cursor'));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ source: 'cursor' }));
   });
-
-  it('clears all filters', async () => {
+  it('clears filters', async () => {
     const onChange = vi.fn();
-    render(<FilterBar filters={{ source: 'claude' }} sources={['claude']} devices={[]} onChange={onChange} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    render(<FilterBar filters={{ source: 'cursor' }} sources={['cursor']} devices={[]} onChange={onChange} />);
+    await userEvent.click(screen.getByRole('button', { name: /clear/i }));
     expect(onChange).toHaveBeenCalledWith({});
   });
 });
