@@ -27,4 +27,14 @@ describe('ASSETS fallthrough', () => {
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });
+
+  it('propagates a 404 from the asset layer for unknown paths (no SPA shell)', async () => {
+    // With `not_found_handling: "none"` the asset layer returns 404 for unmatched
+    // paths; the catch-all must pass that status through rather than forcing 200.
+    const spy = vi.spyOn(env.ASSETS, 'fetch').mockImplementation(() => Promise.resolve(new Response('Not found', { status: 404 })));
+    const res = await SELF.fetch('https://example.com/.env');
+    expect(res.status).toBe(404);
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
 });
