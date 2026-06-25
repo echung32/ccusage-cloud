@@ -1,7 +1,7 @@
 ---
-import Base from '../layouts/Base.astro';
+import Dashboard from '../layouts/Dashboard.astro';
 import { BySourceModel } from '../components/BySourceModel';
 ---
-<Base title="Sources & Models — ccusage-cloud">
-  <BySourceModel client:load />
-</Base>
+<Dashboard title="Sources & Models — ccusage-cloud">
+  <BySourceModel client:only="react" />
+</Dashboard>
