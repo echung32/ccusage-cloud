@@ -35,9 +35,11 @@ export function rangeToFilters(
       to: `${value.endDate.slice(0, 10)}T23:59:59.999Z`,
     };
   }
-  // relative — guard against invalid input so this function never throws
+  // relative — guard against invalid input so this function never throws.
+  // Use own-key membership (not `in`, which walks the prototype chain and
+  // would accept inherited keys like `toString` → NaN → Date(NaN) throw).
   const unit = value.unit as string;
-  if (!(unit in MS)) return { from: undefined, to: undefined };
+  if (!Object.hasOwn(MS, unit)) return { from: undefined, to: undefined };
   if (!Number.isFinite(value.amount) || value.amount <= 0) return { from: undefined, to: undefined };
   const from = subtract(now, value.amount, unit as TimeUnit);
   return { from: startOfDayUtc(from), to: endOfDayUtc(now) };

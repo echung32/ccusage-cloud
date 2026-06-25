@@ -42,6 +42,18 @@ describe('rangeToFilters', () => {
       to: undefined,
     });
   });
+
+  it('guards against inherited prototype keys as unit — returns cleared bounds', () => {
+    // `unit in MS` would accept 'toString'/'constructor' (prototype chain) and
+    // yield NaN → Date(NaN).toISOString() throw; own-key check must reject these.
+    for (const unit of ['toString', 'constructor', 'hasOwnProperty']) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(rangeToFilters({ type: 'relative', amount: 7, unit: unit as any, key: '' }, NOW)).toEqual({
+        from: undefined,
+        to: undefined,
+      });
+    }
+  });
 });
 
 describe('filtersToRange', () => {
