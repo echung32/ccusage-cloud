@@ -102,8 +102,12 @@ Files touched for the rename: `worker/src/viewer.ts`, `worker/src/api.ts`,
 - **Drop** the `allowed_emails` table (and its comment block).
 - `devices` / `sessions` unchanged.
 
-Re-apply with `pnpm --filter @ccusage-cloud/worker migrate:local` (and the remote
-equivalent) against the empty DB.
+The remote D1 currently has the magic-link schema applied, but it holds no data
+worth preserving (everything is re-fetchable via `ccusage-cloud sync`). So we
+**reset the database** rather than write a forward migration: drop/recreate the
+remote D1 (or clear its migration state) and apply the edited `0001_init.sql`
+fresh. Locally, re-apply with `pnpm --filter @ccusage-cloud/worker migrate:local`
+against a clean DB.
 
 ### 3. Removals (Worker)
 
