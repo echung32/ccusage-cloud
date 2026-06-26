@@ -89,7 +89,7 @@ importers:
     dependencies:
       auth-verify:
         specifier: github:echung32/auth-verify#v1
-        version: https://codeload.github.com/echung32/auth-verify/tar.gz/f7dbd94d82451c7b83d1094fc1c5fcbbeea89728(jose@6.2.3)
+        version: https://codeload.github.com/echung32/auth-verify/tar.gz/19d41d318102127aa3c91a051775ed82edfab9df(jose@6.2.3)
       hono:
         specifier: ^4.6.0
         version: 4.12.27
@@ -1734,8 +1734,8 @@ packages:
   asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
 
-  auth-verify@https://codeload.github.com/echung32/auth-verify/tar.gz/f7dbd94d82451c7b83d1094fc1c5fcbbeea89728:
-    resolution: {gitHosted: true, integrity: sha512-Erf+PF9mgu/qGH05BfsQEirI0Vk+ghnRxb90gGldIplAx5foRy1KLPt1TJ+2q0T4WbHicfdiKsqubWCnqLmgZw==, tarball: https://codeload.github.com/echung32/auth-verify/tar.gz/f7dbd94d82451c7b83d1094fc1c5fcbbeea89728}
+  auth-verify@https://codeload.github.com/echung32/auth-verify/tar.gz/19d41d318102127aa3c91a051775ed82edfab9df:
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/echung32/auth-verify/tar.gz/19d41d318102127aa3c91a051775ed82edfab9df}
     version: 1.0.0
     peerDependencies:
       jose: ^5 || ^6
@@ -4917,7 +4917,7 @@ snapshots:
 
   asynckit@0.4.0: {}
 
-  auth-verify@https://codeload.github.com/echung32/auth-verify/tar.gz/f7dbd94d82451c7b83d1094fc1c5fcbbeea89728(jose@6.2.3):
+  auth-verify@https://codeload.github.com/echung32/auth-verify/tar.gz/19d41d318102127aa3c91a051775ed82edfab9df(jose@6.2.3):
     dependencies:
       jose: 6.2.3
 
