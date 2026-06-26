@@ -1,6 +1,9 @@
-// auth-verify dist/index.js
-// Vendored from echung32/auth-gateway/packages/auth-verify (v1.0.0)
-// Source: https://github.com/echung32/auth-gateway/tree/master/packages/auth-verify
+// auth-verify dist/index.js — VENDORED. See ./../VENDOR.md.
+// Source: echung32/auth-gateway, packages/auth-verify/src/index.ts
+//   @ commit 9985dde2bdf761e549bfa5e4a052040812031901 (public repo).
+// This is the ESM build output (types stripped) of the vendored src/index.ts in
+// this package. There is no standalone echung32/auth-verify repo and the package
+// is unpublished, so it is vendored rather than installed. Rebuild: see VENDOR.md.
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const ACCESS_COOKIE = "__Secure-fleet_at";
