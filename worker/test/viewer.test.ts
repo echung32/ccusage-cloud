@@ -46,8 +46,28 @@ describe('requireUser', () => {
     });
     expect(res.status).toBe(401);
   });
-});
 
-// Note: mintToken always sets issuer/audience to the AUTH values and a 5-minute
-// expiry, so wrong-issuer/expired cases would need a parameterized variant; the
-// malformed + tampered cases above already exercise the verification-failure path.
+  it('401s for a token with wrong audience', async () => {
+    const token = await mintToken({ sub: 'gh|aud-test', audience: 'wrong-aud' });
+    const res = await SELF.fetch('https://example.com/api/me', {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('401s for an already-expired token', async () => {
+    const token = await mintToken({ sub: 'gh|exp-test', expiresIn: '-1s' });
+    const res = await SELF.fetch('https://example.com/api/me', {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('401s for a token with no sub claim', async () => {
+    const token = await mintToken({ sub: 'ignored', noSub: true });
+    const res = await SELF.fetch('https://example.com/api/me', {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(401);
+  });
+});

@@ -18,6 +18,9 @@ export const requireUser = createMiddleware<AppBindings>(async (c, next) => {
     if (e instanceof Response) return e; // auth-verify throws a 401 Response
     return c.json({ error: 'auth unavailable' }, 503); // e.g. JWKS fetch failure
   }
+  if (!u.sub || u.sub === 'undefined') {
+    return c.json({ error: 'invalid token' }, 401);
+  }
   await c.env.DB.prepare(
     'INSERT INTO users (id, email, name, public_to_group, created_at) VALUES (?, ?, ?, 0, ?) ON CONFLICT(id) DO NOTHING',
   )

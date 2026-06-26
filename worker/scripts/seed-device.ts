@@ -17,12 +17,8 @@ const now = Date.now();
 // Dev-only seeding into the LOCAL D1. Values are generated here (no user input
 // is interpolated beyond the email/label arguments you control).
 const sql = `
-INSERT INTO allowed_emails (email, added_at) VALUES ('${email}', ${now})
-  ON CONFLICT(email) DO NOTHING;
-INSERT INTO users (id, email, public_to_group, created_at) VALUES ('${userId}', '${email}', 0, ${now})
-  ON CONFLICT(email) DO NOTHING;
-INSERT INTO devices (id, user_id, token_sha256, label, created_at)
-  SELECT '${deviceId}', id, '${tokenHash}', '${label}', ${now} FROM users WHERE email = '${email}';
+INSERT INTO users (id, email, public_to_group, created_at) VALUES ('${userId}', '${email}', 0, ${now});
+INSERT INTO devices (id, user_id, token_sha256, label, created_at) VALUES ('${deviceId}', '${userId}', '${tokenHash}', '${label}', ${now});
 `;
 
 execFileSync('wrangler', ['d1', 'execute', 'ccusage-cloud', '--local', '--command', sql], {

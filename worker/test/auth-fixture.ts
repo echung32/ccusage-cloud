@@ -25,15 +25,21 @@ export async function mintToken(opts: {
   email?: string | null;
   name?: string | null;
   scopes?: string[];
+  issuer?: string;
+  audience?: string;
+  expiresIn?: string;
+  noSub?: boolean;
 }): Promise<string> {
-  return new SignJWT({ email: opts.email ?? null, name: opts.name ?? null, scopes: opts.scopes ?? [] })
+  let jwt = new SignJWT({ email: opts.email ?? null, name: opts.name ?? null, scopes: opts.scopes ?? [] })
     .setProtectedHeader({ alg: 'EdDSA', kid: KID })
-    .setIssuer(ISSUER)
-    .setAudience(AUDIENCE)
-    .setSubject(opts.sub)
+    .setIssuer(opts.issuer ?? ISSUER)
+    .setAudience(opts.audience ?? AUDIENCE)
     .setIssuedAt()
-    .setExpirationTime('5m')
-    .sign(keyPair.privateKey);
+    .setExpirationTime(opts.expiresIn ?? '5m');
+  if (!opts.noSub) {
+    jwt = jwt.setSubject(opts.sub);
+  }
+  return jwt.sign(keyPair.privateKey);
 }
 
 export async function authFetch(path: string, sub: string, init: RequestInit = {}): Promise<Response> {
