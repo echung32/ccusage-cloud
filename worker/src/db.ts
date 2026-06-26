@@ -7,7 +7,7 @@ INSERT INTO sessions (
   total_tokens, total_cost, credits, first_activity, last_activity,
   models_used, model_breakdowns, project_path, updated_at
 ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-ON CONFLICT (user_id, device_id, source, session_id) DO UPDATE SET
+ON CONFLICT (user_id, device_id, source, session_id, project_path) DO UPDATE SET
   input_tokens          = excluded.input_tokens,
   output_tokens         = excluded.output_tokens,
   cache_creation_tokens = excluded.cache_creation_tokens,
@@ -19,7 +19,6 @@ ON CONFLICT (user_id, device_id, source, session_id) DO UPDATE SET
   last_activity         = excluded.last_activity,
   models_used           = excluded.models_used,
   model_breakdowns      = excluded.model_breakdowns,
-  project_path          = excluded.project_path,
   updated_at            = excluded.updated_at
 `;
 
@@ -49,7 +48,7 @@ export async function upsertSessions(
       s.lastActivity ?? null,
       JSON.stringify(s.modelsUsed),
       JSON.stringify(s.modelBreakdowns ?? null),
-      s.projectPath ?? null,
+      s.projectPath ?? '',
       now,
     ),
   );

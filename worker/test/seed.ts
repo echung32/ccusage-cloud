@@ -84,7 +84,7 @@ export async function seedSession(
       cacheReadTokens: cacheRead,
       cost: totalCost,
     }));
-  const projectPath = opts.projectPath === undefined ? '/work/app' : opts.projectPath;
+  const projectPath = opts.projectPath === undefined ? '/work/app' : (opts.projectPath ?? '');
   await env.DB.prepare(
     `INSERT INTO sessions (
       user_id, device_id, source, session_id,

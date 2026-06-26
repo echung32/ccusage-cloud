@@ -113,7 +113,7 @@ export async function summaryQuery(db: D1Database, userId: string, filters: Summ
   const byProject = (
     await db
       .prepare(
-        `SELECT COALESCE(s.project_path, '(unknown)') AS projectPath,
+        `SELECT COALESCE(NULLIF(s.project_path, ''), '(unknown)') AS projectPath,
                 COALESCE(SUM(s.total_tokens),0) AS totalTokens,
                 COALESCE(SUM(s.total_cost),0) AS totalCost,
                 COUNT(*) AS sessions

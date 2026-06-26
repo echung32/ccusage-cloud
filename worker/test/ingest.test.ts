@@ -92,3 +92,41 @@ describe('POST /ingest', () => {
     expect(row?.last_seen_at).not.toBeNull();
   });
 });
+
+describe('POST /ingest dedup grain', () => {
+  it('stores same sessionId under different projectPaths as separate rows', async () => {
+    const { token, userId } = await seedDevice(env);
+    const a = session({ sessionId: 'dup1', projectPath: '/repo', totalTokens: 100, totalCost: 1 });
+    const b = session({ sessionId: 'dup1', projectPath: '/repo/.worktree', totalTokens: 40, totalCost: 0.4 });
+    const res = await post(token, [a, b]);
+    expect(res.status).toBe(200);
+    const row = await env.DB.prepare(
+      'SELECT COUNT(*) AS n, COALESCE(SUM(total_tokens),0) AS tok, COALESCE(SUM(total_cost),0) AS cost FROM sessions WHERE user_id = ? AND session_id = ?',
+    ).bind(userId, 'dup1').first<{ n: number; tok: number; cost: number }>();
+    expect(row?.n).toBe(2);
+    expect(row?.tok).toBe(140);
+    expect(row?.cost).toBeCloseTo(1.4);
+  });
+
+  it('is idempotent: re-posting updates in place, no new rows', async () => {
+    const { token, userId } = await seedDevice(env);
+    const a = session({ sessionId: 'dup2', projectPath: '/repo', totalTokens: 100 });
+    const b = session({ sessionId: 'dup2', projectPath: '/repo/.worktree', totalTokens: 40 });
+    await post(token, [a, b]);
+    await post(token, [{ ...a, totalTokens: 111 }, b]);
+    const row = await env.DB.prepare(
+      'SELECT COUNT(*) AS n, COALESCE(SUM(total_tokens),0) AS tok FROM sessions WHERE user_id = ? AND session_id = ?',
+    ).bind(userId, 'dup2').first<{ n: number; tok: number }>();
+    expect(row?.n).toBe(2);
+    expect(row?.tok).toBe(151);
+  });
+
+  it('normalizes a null projectPath to empty string', async () => {
+    const { token, userId } = await seedDevice(env);
+    await post(token, [session({ sessionId: 'np1', projectPath: null })]);
+    const row = await env.DB.prepare(
+      'SELECT project_path AS p FROM sessions WHERE user_id = ? AND session_id = ?',
+    ).bind(userId, 'np1').first<{ p: string }>();
+    expect(row?.p).toBe('');
+  });
+});
