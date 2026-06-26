@@ -12,6 +12,13 @@ This is a **vendored copy** of the `auth-verify` package from the public repo
 - **Contents:** `src/index.ts` is the verbatim upstream source at that commit.
   `dist/index.js` + `dist/index.d.ts` are the committed ESM build output (upstream
   builds with `tsup src/index.ts --format esm --dts`).
+- **Deviation from upstream:** upstream declares `jose` as a `peerDependency`
+  (it expects the publishing consumer to provide it). Here the package is consumed
+  as a workspace dependency and bundled by wrangler/esbuild, which resolves
+  `import "jose"` relative to `dist/index.js` — so `jose` is also declared as a
+  direct `dependency` of this package, ensuring it is installed in
+  `packages/auth-verify/node_modules` and the worker's `wrangler deploy` build can
+  resolve it. Without this, the build fails with `Could not resolve "jose"`.
 
 ## Updating
 
