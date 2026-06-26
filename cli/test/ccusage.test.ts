@@ -65,4 +65,42 @@ describe('loadSessions codex/costUSD + resilience', () => {
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
   });
+
+  it('prefers totalCost over costUSD when both fields are present', () => {
+    const run: Runner = () => JSON.stringify({ sessions: [{
+      sessionId: 'cx2', inputTokens: 1, outputTokens: 2, cacheCreationTokens: 0,
+      cacheReadTokens: 3, totalTokens: 6, totalCost: 0.5, costUSD: 0.78,
+    }] });
+    const out = loadSessions('codex', 'ccusage', run);
+    expect(out).toHaveLength(1);
+    expect(out[0].totalCost).toBeCloseTo(0.5);
+  });
+
+  it('emits exact warning text and count when multiple rows fail schema validation', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const run: Runner = () => JSON.stringify({ sessions: [
+      { sessionId: 'good', inputTokens: 1, outputTokens: 1, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 2, totalCost: 0.1 },
+      { sessionId: 'bad1', inputTokens: 'NOPE' },
+      { sessionId: 'bad2', outputTokens: 'NOPE' },
+    ] });
+    const out = loadSessions('claude', 'ccusage', run);
+    expect(out).toHaveLength(1);
+    expect(out[0].sessionId).toBe('good');
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith('ccusage claude: skipped 2 session(s) that failed validation');
+    warn.mockRestore();
+  });
+
+  it('drops null-sessionId rows silently without incrementing the validation-failure counter', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const run: Runner = () => JSON.stringify({ sessions: [
+      { sessionId: 'real', inputTokens: 1, outputTokens: 1, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 2, totalCost: 0.2 },
+      { sessionId: null, inputTokens: 1, outputTokens: 1, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 2, totalCost: 0.1 },
+    ] });
+    const out = loadSessions('claude', 'ccusage', run);
+    expect(out).toHaveLength(1);
+    expect(out[0].sessionId).toBe('real');
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
 });
