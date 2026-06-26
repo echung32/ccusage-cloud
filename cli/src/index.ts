@@ -6,20 +6,62 @@ import { diffSessions, loadState } from './state';
 import { ALL_SOURCES } from './sources';
 import { redactProjects } from './redact';
 
+const HELP = `ccusage-cloud - sync local ccusage data to a ccusage-cloud server
+
+Usage:
+  ccusage-cloud <command> [options]
+
+Commands:
+  login    Save credentials for a ccusage-cloud server
+  sync     Push new/changed sessions to the server
+  status   Show server config, last sync time, and pending sessions
+
+Options:
+  --server <url>      Server URL (login)
+  --token <token>     Device token (login)
+  --ccusage-bin <bin> Path to the ccusage binary (login, default: ccusage)
+  --source <source>   Limit to a single source (sync, status)
+  --full              Push all sessions, not just changed ones (sync)
+  --redact-projects   Replace project paths with opaque hashes
+  -h, --help          Show this help
+
+Examples:
+  ccusage-cloud login --server https://example.com --token <token>
+  ccusage-cloud sync
+  ccusage-cloud status`;
+
 export async function run(argv: string[], runner?: Runner): Promise<number> {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: {
-      token: { type: 'string' },
-      server: { type: 'string' },
-      'ccusage-bin': { type: 'string' },
-      source: { type: 'string' },
-      full: { type: 'boolean' },
-      'redact-projects': { type: 'boolean' },
-    },
-  });
+  let values, positionals;
+  try {
+    ({ values, positionals } = parseArgs({
+      args: argv,
+      allowPositionals: true,
+      options: {
+        token: { type: 'string' },
+        server: { type: 'string' },
+        'ccusage-bin': { type: 'string' },
+        source: { type: 'string' },
+        full: { type: 'boolean' },
+        'redact-projects': { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' },
+      },
+    }));
+  } catch (err) {
+    console.error((err as Error).message);
+    console.error(HELP);
+    return 1;
+  }
   const cmd = positionals[0];
+
+  if (values.help || cmd === 'help') {
+    console.log(HELP);
+    return 0;
+  }
+
+  if (!cmd) {
+    console.log(HELP);
+    return 0;
+  }
 
   if (cmd === 'login') {
     if (!values.server || !values.token) {
@@ -70,7 +112,8 @@ export async function run(argv: string[], runner?: Runner): Promise<number> {
     return 0;
   }
 
-  console.error('Usage: ccusage-cloud <login|sync|status>');
+  console.error(`Unknown command: ${cmd}`);
+  console.error(HELP);
   return 1;
 }
 
