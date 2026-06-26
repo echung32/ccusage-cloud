@@ -127,4 +127,43 @@ describe('GET /api/sessions', () => {
     expect(collectedPaths).toContain('/work/feat');
     expect(collectedPaths).toHaveLength(2);
   });
+
+  it('paginates through device siblings (same source+sessionId+lastActivity+projectPath, different deviceId)', async () => {
+    const { userId, deviceId: deviceId1 } = await seedDevice(env, `ds-a-${Date.now()}@example.com`);
+    // Insert a second device for the same user directly (seedDevice always creates a new user).
+    const deviceId2 = `dev_ds_b_${Date.now()}`;
+    await env.DB.prepare(
+      'INSERT INTO devices (id, user_id, token_sha256, label, created_at) VALUES (?, ?, ?, ?, ?)',
+    ).bind(deviceId2, userId, 'sha256_placeholder_ds_b', 'device-b', Date.now()).run();
+
+    const sharedActivity = '2026-05-01T12:00:00.000Z';
+    await seedSession(env, {
+      userId, deviceId: deviceId1, source: 'claude', sessionId: 'ds-sess',
+      lastActivity: sharedActivity, projectPath: '/work/shared',
+    });
+    await seedSession(env, {
+      userId, deviceId: deviceId2, source: 'claude', sessionId: 'ds-sess',
+      lastActivity: sharedActivity, projectPath: '/work/shared',
+    });
+
+    // Page through with limit=1; both device ids must appear exactly once.
+    const collectedDeviceIds: string[] = [];
+    let cursor: string | null = null;
+    let pages = 0;
+    do {
+      const url = `/api/sessions?limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+      const res = await asViewer(userId, url);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { sessions: { deviceId: string }[]; nextCursor: string | null };
+      for (const s of body.sessions) {
+        collectedDeviceIds.push(s.deviceId);
+      }
+      cursor = body.nextCursor;
+      pages += 1;
+    } while (cursor && pages < 10);
+
+    expect(collectedDeviceIds).toContain(deviceId1);
+    expect(collectedDeviceIds).toContain(deviceId2);
+    expect(collectedDeviceIds).toHaveLength(2);
+  });
 });
