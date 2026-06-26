@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import * as v from 'valibot';
+import { synthesizeBreakdowns } from './model-breakdowns';
 import { SessionRowSchema, type TaggedSession } from './types';
 
 export type Runner = (bin: string, args: string[]) => string;
@@ -39,9 +40,12 @@ export function loadSessions(
       dropped += 1;
       continue;
     }
-    const { sessionId, costUSD, totalCost, ...rest } = parsed.output;
+    const { sessionId, costUSD, totalCost, models, modelBreakdowns, ...rest } = parsed.output;
     if (sessionId === null) continue; // incomplete session — dropped silently, as before
-    out.push({ ...rest, sessionId, source, totalCost: totalCost ?? costUSD ?? 0 });
+    const resolvedCost = totalCost ?? costUSD ?? 0;
+    const breakdowns =
+      modelBreakdowns ?? (models ? synthesizeBreakdowns(models, resolvedCost) : undefined);
+    out.push({ ...rest, sessionId, source, totalCost: resolvedCost, modelBreakdowns: breakdowns });
   }
   if (dropped > 0) {
     console.warn(`ccusage ${source}: skipped ${dropped} session(s) that failed validation`);
