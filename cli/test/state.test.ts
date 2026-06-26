@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { diffSessions, loadState, saveState, sessionHash, type SyncState } from '../src/state';
+import { diffSessions, loadState, saveState, sessionHash, sessionKey, type SyncState } from '../src/state';
 import type { TaggedSession } from '../src/types';
 
 function sess(over: Partial<TaggedSession> = {}): TaggedSession {
@@ -36,9 +36,21 @@ describe('sync state', () => {
 
   it('diff returns only changed sessions', () => {
     const s = sess();
-    const state: SyncState = { hashes: { 'claude\ts1': sessionHash(s) }, lastSyncAt: 1 };
+    const state: SyncState = { hashes: { 'claude\ts1\t/p': sessionHash(s) }, lastSyncAt: 1 };
     expect(diffSessions([s], state)).toEqual({ changed: [], unchanged: 1 });
     const changed = sess({ totalCost: 9.99 });
     expect(diffSessions([changed], state).changed).toHaveLength(1);
+  });
+});
+
+describe('sessionKey grain', () => {
+  it('distinguishes same sessionId across different project paths', () => {
+    const base = { source: 'claude', sessionId: 's', inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, totalCost: 0 } as TaggedSession;
+    const a = { ...base, projectPath: '/repo' };
+    const b = { ...base, projectPath: '/repo/.worktree' };
+    expect(sessionKey(a)).not.toBe(sessionKey(b));
+    const { changed } = diffSessions([a, b], { hashes: { [sessionKey(a)]: sessionHash(a) }, lastSyncAt: 1 });
+    expect(changed).toHaveLength(1);
+    expect(changed[0].projectPath).toBe('/repo/.worktree');
   });
 });

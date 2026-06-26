@@ -1,11 +1,13 @@
 import { execFileSync } from 'node:child_process';
 import * as v from 'valibot';
-import { SessionFileSchema, type TaggedSession } from './types';
+import { SessionRowSchema, type TaggedSession } from './types';
 
 export type Runner = (bin: string, args: string[]) => string;
 
 const defaultRunner: Runner = (bin, args) =>
   execFileSync(bin, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+
+const FileShape = v.object({ sessions: v.array(v.unknown()) });
 
 export function loadSessions(
   source: string,
@@ -26,10 +28,23 @@ export function loadSessions(
     return [];
   }
 
-  const parsed = v.safeParse(SessionFileSchema, json);
-  if (!parsed.success) return [];
+  const file = v.safeParse(FileShape, json);
+  if (!file.success) return [];
 
-  return parsed.output.sessions
-    .filter((s): s is typeof s & { sessionId: string } => s.sessionId !== null)
-    .map(({ sessionId, ...rest }) => ({ ...rest, sessionId, source }));
+  const out: TaggedSession[] = [];
+  let dropped = 0;
+  for (const row of file.output.sessions) {
+    const parsed = v.safeParse(SessionRowSchema, row);
+    if (!parsed.success) {
+      dropped += 1;
+      continue;
+    }
+    const { sessionId, costUSD, totalCost, ...rest } = parsed.output;
+    if (sessionId === null) continue; // incomplete session — dropped silently, as before
+    out.push({ ...rest, sessionId, source, totalCost: totalCost ?? costUSD ?? 0 });
+  }
+  if (dropped > 0) {
+    console.warn(`ccusage ${source}: skipped ${dropped} session(s) that failed validation`);
+  }
+  return out;
 }

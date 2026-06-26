@@ -7,7 +7,8 @@ export const SessionRowSchema = v.object({
   cacheCreationTokens: v.number(),
   cacheReadTokens: v.number(),
   totalTokens: v.number(),
-  totalCost: v.number(),
+  totalCost: v.optional(v.number()),
+  costUSD: v.optional(v.number()),
   credits: v.optional(v.number()),
   firstActivity: v.nullish(v.string()),
   lastActivity: v.nullish(v.string()),
@@ -22,7 +23,8 @@ export const SessionFileSchema = v.object({
 
 export type SessionRow = v.InferOutput<typeof SessionRowSchema>;
 
-export type TaggedSession = Omit<SessionRow, 'sessionId'> & {
+export type TaggedSession = Omit<SessionRow, 'sessionId' | 'totalCost' | 'costUSD'> & {
   source: string;
   sessionId: string;
+  totalCost: number;
 };
