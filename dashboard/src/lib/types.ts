@@ -1,4 +1,4 @@
-export interface Me { id: string; email: string; publicToGroup: boolean; devices: DeviceInfo[] }
+export interface Me { id: string; email: string | null; publicToGroup: boolean; devices: DeviceInfo[] }
 export interface DeviceInfo { id: string; label: string; createdAt: number; lastSeenAt: number | null; revokedAt: number | null }
 export interface SummaryTotals { sessions: number; totalTokens: number; inputTokens: number; outputTokens: number; cacheCreationTokens: number; cacheReadTokens: number; totalCost: number }
 export interface ByDay { day: string; totalTokens: number; totalCost: number }
