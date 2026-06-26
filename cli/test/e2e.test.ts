@@ -34,8 +34,7 @@ beforeAll(async () => {
     });
     const now = Date.now();
     d1(
-      `INSERT INTO allowed_emails (email, added_at) VALUES ('e2e@example.com', ${now});` +
-        `INSERT INTO users (id, email, public_to_group, created_at) VALUES ('${userId}', 'e2e@example.com', 0, ${now});` +
+      `INSERT INTO users (id, email, public_to_group, created_at) VALUES ('${userId}', 'e2e@example.com', 0, ${now});` +
         `INSERT INTO devices (id, user_id, token_sha256, label, created_at) VALUES ('${deviceId}', '${userId}', '${tokenHash}', 'e2e', ${now});`,
     );
     worker = await unstable_dev(join(WORKER_DIR, 'src/index.ts'), {

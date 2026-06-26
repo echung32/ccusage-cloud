@@ -1,13 +1,13 @@
 import { Hono } from 'hono';
 import * as v from 'valibot';
 import type { AppBindings } from './env';
-import { requireViewer } from './viewer';
+import { requireUser } from './viewer';
 import { randomToken } from './tokens';
 import { sha256Hex } from './crypto';
 
 export const apiRoutes = new Hono<AppBindings>();
 
-apiRoutes.use('/api/*', requireViewer);
+apiRoutes.use('/api/*', requireUser);
 
 apiRoutes.get('/api/me', async (c) => {
   const { userId } = c.var.viewer;

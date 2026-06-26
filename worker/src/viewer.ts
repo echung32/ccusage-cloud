@@ -1,14 +1,31 @@
 import { createMiddleware } from 'hono/factory';
-import { getCookie } from 'hono/cookie';
+import { requireUser as verifyUser } from 'auth-verify';
 import type { AppBindings } from './env';
-import { getViewerSession } from './kv';
-import { SESSION_COOKIE } from './auth_routes';
+import { AUTH } from './auth_config';
 
-export const requireViewer = createMiddleware<AppBindings>(async (c, next) => {
-  const sid = getCookie(c, SESSION_COOKIE);
-  if (!sid) return c.json({ error: 'not authenticated' }, 401);
-  const session = await getViewerSession(c.env, sid);
-  if (!session) return c.json({ error: 'not authenticated' }, 401);
-  c.set('viewer', { userId: session.userId });
+interface VerifiedUser {
+  sub: string;
+  email: string | null;
+  name: string | null;
+  scopes: string[];
+}
+
+export const requireUser = createMiddleware<AppBindings>(async (c, next) => {
+  let u: VerifiedUser;
+  try {
+    u = (await verifyUser(c.req.raw, AUTH)) as VerifiedUser;
+  } catch (e) {
+    if (e instanceof Response) return e; // auth-verify throws a 401 Response
+    return c.json({ error: 'auth unavailable' }, 503); // e.g. JWKS fetch failure
+  }
+  if (!u.sub || u.sub === 'undefined') {
+    return c.json({ error: 'invalid token' }, 401);
+  }
+  await c.env.DB.prepare(
+    'INSERT INTO users (id, email, name, public_to_group, created_at) VALUES (?, ?, ?, 0, ?) ON CONFLICT(id) DO NOTHING',
+  )
+    .bind(u.sub, u.email, u.name, Date.now())
+    .run();
+  c.set('viewer', { userId: u.sub });
   await next();
 });

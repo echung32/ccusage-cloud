@@ -8,9 +8,10 @@ const canRun = typeof document !== 'undefined' && process.env.CI_SKIP_E2E !== '1
 afterEach(() => vi.restoreAllMocks());
 
 describe.skipIf(!canRun)('e2e: login -> overview', () => {
-  it('an authenticated viewer is sent to overview and sees totals', async () => {
-    // Authenticated getMe resolves -> LoginGate redirects (we assert it does NOT show the email form).
-    const okMe = { id: 'u1', email: 'a@b.c', publicToGroup: false, devices: [{ id: 'd1', label: 'laptop', createdAt: 0, lastSeenAt: null, revokedAt: null }] };
+  it('an authenticated viewer is redirected and overview shows totals', async () => {
+    const okMe = { id: 'gh|u1', email: null, publicToGroup: false, devices: [{ id: 'd1', label: 'laptop', createdAt: 0, lastSeenAt: null, revokedAt: null }] };
+    const loc = { href: 'https://ccusage.ethanchung.dev/' } as unknown as Location;
+    vi.stubGlobal('location', loc);
     vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
       if (url.startsWith('/api/me')) return Promise.resolve(new Response(JSON.stringify(okMe), { status: 200 }));
       if (url.startsWith('/api/summary')) {
@@ -23,12 +24,10 @@ describe.skipIf(!canRun)('e2e: login -> overview', () => {
       return Promise.resolve(new Response('{}', { status: 200 }));
     }));
 
-    // LoginGate with an authenticated session must not render the email form.
     const gate = render(<LoginGate />);
-    await waitFor(() => expect(gate.queryByLabelText('email')).not.toBeInTheDocument());
+    await waitFor(() => expect(loc.href).toContain('/overview'));
     gate.unmount();
 
-    // Overview renders the totals for the authenticated viewer.
     render(<Overview />);
     await waitFor(() => expect(screen.getByText('1,000')).toBeInTheDocument());
     expect(screen.getByText('7')).toBeInTheDocument();

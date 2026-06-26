@@ -8,8 +8,10 @@ describe('migration 0001', () => {
     ).all<{ name: string }>();
     const names = results.map((r) => r.name);
     expect(names).toEqual(
-      expect.arrayContaining(['allowed_emails', 'devices', 'sessions', 'users']),
+      expect.arrayContaining(['devices', 'sessions', 'users']),
     );
+    const userCols = await env.DB.prepare('PRAGMA table_info(users)').all<{ name: string }>();
+    expect(userCols.results.map((c) => c.name)).toEqual(expect.arrayContaining(['name']));
   });
 
   it('enforces the sessions composite primary key', async () => {

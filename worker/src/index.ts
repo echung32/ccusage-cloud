@@ -4,7 +4,6 @@ import type { AppBindings } from './env';
 import { deviceAuth } from './auth';
 import { IngestSchema } from './schema';
 import { upsertSessions } from './db';
-import { authRoutes } from './auth_routes';
 import { apiRoutes } from './api';
 import { readApiRoutes } from './read_api';
 import { rateLimit } from './ratelimit';
@@ -31,12 +30,11 @@ app.post('/ingest', deviceAuth, async (c) => {
   return c.json({ upserted, skipped: 0 });
 });
 
-app.route('/', authRoutes);
 app.route('/', apiRoutes);
 app.route('/', readApiRoutes);
 
 // Non-API paths are served by the static dashboard via the Assets binding.
-// Registered last so /health, /ingest, /auth/*, and /api/* always win.
+// Registered last so /health, /ingest, and /api/* always win.
 // With `not_found_handling: "none"`, unknown paths come back as 404 from the
 // asset layer and that status is propagated as-is (no SPA index.html shell).
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));

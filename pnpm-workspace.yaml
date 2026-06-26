@@ -2,6 +2,7 @@ packages:
   - worker
   - cli
   - dashboard
+  - packages/*
 allowBuilds:
   esbuild: true
   sharp: false

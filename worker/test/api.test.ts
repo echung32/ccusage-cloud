@@ -1,15 +1,16 @@
 import { SELF, env } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
-import { putViewerSession } from '../src/kv';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { installJwks, mintToken } from './auth-fixture';
 import { seedUser } from './seed';
 import { sha256Hex } from '../src/crypto';
 
+beforeAll(() => installJwks());
+
 async function asViewer(userId: string, path: string, init: RequestInit = {}) {
-  const sid = `sid_${userId}`;
-  await putViewerSession(env, sid, userId);
+  const token = await mintToken({ sub: userId });
   return SELF.fetch(`https://example.com${path}`, {
     ...init,
-    headers: { ...(init.headers ?? {}), cookie: `ccusage_session=${sid}` },
+    headers: { ...(init.headers ?? {}), authorization: `Bearer ${token}` },
   });
 }
 

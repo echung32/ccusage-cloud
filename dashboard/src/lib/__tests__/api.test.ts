@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getMe, getSummary, getSessions, createDevice, deleteDevice, patchMe, requestLogin, logout } from '../api';
+import { getMe, getSummary, getSessions, createDevice, deleteDevice, patchMe, logout } from '../api';
 
 function mockFetch(body: unknown, status = 200) {
   return vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
@@ -55,21 +55,20 @@ describe('api client', () => {
     expect(r.publicToGroup).toBe(true);
   });
 
-  it('requestLogin POSTs to /auth/request', async () => {
-    const f = mockFetch({ ok: true });
-    vi.stubGlobal('fetch', f);
-    await requestLogin('a@b.c');
-    expect(f).toHaveBeenCalledWith('/auth/request', expect.objectContaining({ method: 'POST' }));
-  });
-
-  it('logout POSTs to /auth/logout', async () => {
-    const f = mockFetch({ ok: true });
+  it('logout POSTs to the gateway /logout with credentials', async () => {
+    const f = mockFetch({});
     vi.stubGlobal('fetch', f);
     await logout();
-    expect(f).toHaveBeenCalledWith('/auth/logout', expect.objectContaining({ method: 'POST' }));
+    expect(f).toHaveBeenCalledWith(
+      expect.stringContaining('/logout'),
+      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+    );
+    const url = f.mock.calls[0][0] as string;
+    expect(url).toContain('https://auth.ethanchung.dev');
   });
 
   it('throws on non-2xx', async () => {
+    vi.stubGlobal('location', { href: 'http://localhost/' } as unknown as Location);
     vi.stubGlobal('fetch', mockFetch({ error: 'nope' }, 401));
     await expect(getMe()).rejects.toThrow();
   });
