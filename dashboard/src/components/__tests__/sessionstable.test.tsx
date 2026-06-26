@@ -62,4 +62,21 @@ describe('SessionsTable', () => {
     await waitFor(() => expect(screen.queryByText('s1')).not.toBeInTheDocument());
     expect(screen.getByText('s2')).toBeInTheDocument();
   });
+
+  it('keeps sibling rows distinct when source+sessionId match but projectPath differs', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+      if (url.startsWith('/api/me')) return Promise.resolve(new Response(JSON.stringify({ id: 'u1', email: 'a@b.c', publicToGroup: false, devices: [] }), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify({
+        sessions: [
+          { source: 'claude-code', sessionId: 'shared-id', deviceId: 'd1', totalTokens: 100, totalCost: 0.5, firstActivity: null, lastActivity: '2026-06-24T10:00:00Z', modelsUsed: ['claude-opus-4-8'], projectPath: '/repo' },
+          { source: 'claude-code', sessionId: 'shared-id', deviceId: 'd1', totalTokens: 200, totalCost: 1.0, firstActivity: null, lastActivity: '2026-06-24T11:00:00Z', modelsUsed: ['claude-opus-4-8'], projectPath: '/repo/.worktree' },
+        ],
+        nextCursor: null,
+      }), { status: 200 }));
+    }));
+    render(<SessionsTable />);
+    // Both sibling rows must be present — their project-path cells are distinct.
+    await waitFor(() => expect(screen.getByText('/repo')).toBeInTheDocument());
+    expect(screen.getByText('/repo/.worktree')).toBeInTheDocument();
+  });
 });
