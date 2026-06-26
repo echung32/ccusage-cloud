@@ -111,7 +111,7 @@ export function SessionsTable() {
             <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
           </Container>
           <Table {...collectionProps} items={items} columnDefinitions={columnDefinitions}
-            trackBy={(s) => `${s.source}:${s.sessionId}`} variant="full-page" stickyHeader loading={loading} loadingText="Loading"
+            trackBy={(s) => `${s.source}:${s.sessionId}:${s.deviceId}:${s.projectPath ?? ''}`} variant="full-page" stickyHeader loading={loading} loadingText="Loading"
             header={<Header counter={`(${rows.length})`}>Sessions</Header>}
             filter={<PropertyFilter {...propertyFilterProps} i18nStrings={propertyFilterI18n} filteringPlaceholder="Filter sessions" countText={`${filteredItemsCount} matches`} />}
             footer={cursor ? <Button onClick={loadMore} disabled={loading}>Load more</Button> : undefined} />

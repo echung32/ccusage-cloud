@@ -33,8 +33,8 @@ CREATE TABLE sessions (
   last_activity         TEXT,
   models_used           TEXT,
   model_breakdowns      TEXT,
-  project_path          TEXT,
+  project_path          TEXT NOT NULL DEFAULT '',
   updated_at            INTEGER NOT NULL,
-  PRIMARY KEY (user_id, device_id, source, session_id)
+  PRIMARY KEY (user_id, device_id, source, session_id, project_path)
 );
 CREATE INDEX idx_sessions_user_activity ON sessions(user_id, last_activity);

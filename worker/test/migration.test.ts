@@ -14,11 +14,13 @@ describe('migration 0001', () => {
     expect(userCols.results.map((c) => c.name)).toEqual(expect.arrayContaining(['name']));
   });
 
-  it('enforces the sessions composite primary key', async () => {
-    const cols = await env.DB.prepare('PRAGMA table_info(sessions)').all<{ name: string; pk: number }>();
+  it('enforces the sessions composite primary key including project_path', async () => {
+    const cols = await env.DB.prepare('PRAGMA table_info(sessions)').all<{ name: string; pk: number; notnull: number }>();
     const pkCols = cols.results.filter((c) => c.pk > 0).map((c) => c.name);
     expect(pkCols).toEqual(
-      expect.arrayContaining(['user_id', 'device_id', 'source', 'session_id']),
+      expect.arrayContaining(['user_id', 'device_id', 'source', 'session_id', 'project_path']),
     );
+    const pp = cols.results.find((c) => c.name === 'project_path');
+    expect(pp?.notnull).toBe(1);
   });
 });

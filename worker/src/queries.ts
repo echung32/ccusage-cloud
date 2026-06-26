@@ -113,7 +113,7 @@ export async function summaryQuery(db: D1Database, userId: string, filters: Summ
   const byProject = (
     await db
       .prepare(
-        `SELECT COALESCE(s.project_path, '(unknown)') AS projectPath,
+        `SELECT COALESCE(NULLIF(s.project_path, ''), '(unknown)') AS projectPath,
                 COALESCE(SUM(s.total_tokens),0) AS totalTokens,
                 COALESCE(SUM(s.total_cost),0) AS totalCost,
                 COUNT(*) AS sessions
@@ -194,18 +194,18 @@ export interface SessionsPage {
   nextCursor: string | null;
 }
 
-export function encodeCursor(row: { lastActivity: string | null; source: string; sessionId: string }): string {
-  const payload = JSON.stringify([row.lastActivity ?? '', row.source, row.sessionId]);
+export function encodeCursor(row: { lastActivity: string | null; source: string; sessionId: string; deviceId: string; projectPath: string | null }): string {
+  const payload = JSON.stringify([row.lastActivity ?? '', row.source, row.sessionId, row.deviceId, row.projectPath ?? '']);
   return btoa(payload);
 }
 
-export function decodeCursor(cursor: string): { lastActivity: string; source: string; sessionId: string } | null {
+export function decodeCursor(cursor: string): { lastActivity: string; source: string; sessionId: string; deviceId: string; projectPath: string } | null {
   try {
     const arr = JSON.parse(atob(cursor)) as unknown;
-    if (!Array.isArray(arr) || arr.length !== 3) return null;
-    const [lastActivity, source, sessionId] = arr;
-    if (typeof lastActivity !== 'string' || typeof source !== 'string' || typeof sessionId !== 'string') return null;
-    return { lastActivity, source, sessionId };
+    if (!Array.isArray(arr) || arr.length !== 5) return null;
+    const [lastActivity, source, sessionId, deviceId, projectPath] = arr;
+    if (typeof lastActivity !== 'string' || typeof source !== 'string' || typeof sessionId !== 'string' || typeof deviceId !== 'string' || typeof projectPath !== 'string') return null;
+    return { lastActivity, source, sessionId, deviceId, projectPath };
   } catch {
     return null;
   }
@@ -251,11 +251,11 @@ export async function sessionsPage(
   if (cursor) {
     const c = decodeCursor(cursor);
     if (c) {
-      // (last_activity, source, session_id) strictly less than the cursor (descending).
+      // (last_activity, source, session_id, device_id, project_path) strictly less than the cursor (descending).
       parts.push(
-        '(s.last_activity < ? OR (s.last_activity = ? AND s.source < ?) OR (s.last_activity = ? AND s.source = ? AND s.session_id < ?))',
+        '(COALESCE(s.last_activity, \'\') < ? OR (COALESCE(s.last_activity, \'\') = ? AND s.source < ?) OR (COALESCE(s.last_activity, \'\') = ? AND s.source = ? AND s.session_id < ?) OR (COALESCE(s.last_activity, \'\') = ? AND s.source = ? AND s.session_id = ? AND s.device_id < ?) OR (COALESCE(s.last_activity, \'\') = ? AND s.source = ? AND s.session_id = ? AND s.device_id = ? AND s.project_path < ?))',
       );
-      binds.push(c.lastActivity, c.lastActivity, c.source, c.lastActivity, c.source, c.sessionId);
+      binds.push(c.lastActivity, c.lastActivity, c.source, c.lastActivity, c.source, c.sessionId, c.lastActivity, c.source, c.sessionId, c.deviceId, c.lastActivity, c.source, c.sessionId, c.deviceId, c.projectPath);
     }
   }
   const rows = (
@@ -265,7 +265,7 @@ export async function sessionsPage(
                 s.first_activity, s.last_activity, s.models_used, s.project_path
          FROM sessions s
          WHERE ${parts.join(' AND ')}
-         ORDER BY s.last_activity DESC, s.source DESC, s.session_id DESC
+         ORDER BY COALESCE(s.last_activity, '') DESC, s.source DESC, s.session_id DESC, s.device_id DESC, s.project_path DESC
          LIMIT ?`,
       )
       .bind(...binds, limit + 1)
@@ -286,6 +286,6 @@ export async function sessionsPage(
     projectPath: r.project_path,
   }));
   const last = page[page.length - 1];
-  const nextCursor = hasMore && last ? encodeCursor({ lastActivity: last.last_activity, source: last.source, sessionId: last.session_id }) : null;
+  const nextCursor = hasMore && last ? encodeCursor({ lastActivity: last.last_activity, source: last.source, sessionId: last.session_id, deviceId: last.device_id, projectPath: last.project_path }) : null;
   return { sessions, nextCursor };
 }

@@ -27,7 +27,7 @@ export function saveState(state: SyncState, path = statePath()): void {
 }
 
 export function sessionKey(s: TaggedSession): string {
-  return `${s.source}\t${s.sessionId}`;
+  return `${s.source}\t${s.sessionId}\t${s.projectPath ?? ''}`;
 }
 
 // Stable content hash. TaggedSession is built with a deterministic key order

@@ -52,7 +52,7 @@ export interface SeedSessionOpts {
   totalTokens?: number;
   totalCost?: number;
   firstActivity?: string;
-  lastActivity?: string;
+  lastActivity?: string | null;
   modelsUsed?: string[];
   modelBreakdowns?: unknown;
   projectPath?: string | null;
@@ -71,7 +71,7 @@ export async function seedSession(
   const cacheRead = opts.cacheReadTokens ?? 0;
   const totalTokens = opts.totalTokens ?? input + output + cacheCreation + cacheRead;
   const totalCost = opts.totalCost ?? 0.01;
-  const lastActivity = opts.lastActivity ?? '2026-06-20T00:00:00.000Z';
+  const lastActivity = opts.lastActivity === undefined ? '2026-06-20T00:00:00.000Z' : opts.lastActivity;
   const firstActivity = opts.firstActivity ?? lastActivity;
   const modelsUsed = opts.modelsUsed ?? ['claude-opus-4'];
   const modelBreakdowns =
@@ -84,7 +84,7 @@ export async function seedSession(
       cacheReadTokens: cacheRead,
       cost: totalCost,
     }));
-  const projectPath = opts.projectPath === undefined ? '/work/app' : opts.projectPath;
+  const projectPath = opts.projectPath === undefined ? '/work/app' : (opts.projectPath ?? '');
   await env.DB.prepare(
     `INSERT INTO sessions (
       user_id, device_id, source, session_id,
