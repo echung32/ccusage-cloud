@@ -136,4 +136,11 @@ describe('loadSessions codex modelBreakdowns synthesis', () => {
       { modelName: 'claude-opus-4-8', cost: 0.42 },
     ]);
   });
+
+  it('preserves modelBreakdowns key position for sessions that already have it (stable hash)', () => {
+    const run: Runner = () => fixture; // claude fixture: already has modelBreakdowns + projectPath
+    const out = loadSessions('claude', 'ccusage', run);
+    const keys = Object.keys(out[0]);
+    expect(keys.indexOf('modelBreakdowns')).toBeLessThan(keys.indexOf('projectPath'));
+  });
 });

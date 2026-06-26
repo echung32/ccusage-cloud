@@ -40,12 +40,17 @@ export function loadSessions(
       dropped += 1;
       continue;
     }
-    const { sessionId, costUSD, totalCost, models, modelBreakdowns, ...rest } = parsed.output;
+    const { sessionId, costUSD, totalCost, models, ...rest } = parsed.output;
     if (sessionId === null) continue; // incomplete session — dropped silently, as before
     const resolvedCost = totalCost ?? costUSD ?? 0;
-    const breakdowns =
-      modelBreakdowns ?? (models ? synthesizeBreakdowns(models, resolvedCost) : undefined);
-    out.push({ ...rest, sessionId, source, totalCost: resolvedCost, modelBreakdowns: breakdowns });
+    // Synthesize modelBreakdowns from a `models` object (codex shape) only when the
+    // row doesn't already carry one. Keeping modelBreakdowns inside `rest` preserves
+    // its key order so sessions whose value is unchanged keep a stable sessionHash
+    // (no spurious re-sync).
+    if (rest.modelBreakdowns === undefined && models) {
+      rest.modelBreakdowns = synthesizeBreakdowns(models, resolvedCost);
+    }
+    out.push({ ...rest, sessionId, source, totalCost: resolvedCost });
   }
   if (dropped > 0) {
     console.warn(`ccusage ${source}: skipped ${dropped} session(s) that failed validation`);

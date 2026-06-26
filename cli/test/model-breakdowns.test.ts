@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { synthesizeBreakdowns } from '../src/model-breakdowns';
+import { synthesizeBreakdowns, type ModelStats } from '../src/model-breakdowns';
 
-const stats = (over: Partial<Record<string, number>> = {}) => ({
+const stats = (over: Partial<ModelStats> = {}) => ({
   inputTokens: 100, outputTokens: 20, cacheCreationTokens: 0,
   cacheReadTokens: 80, totalTokens: 200, ...over,
 });
