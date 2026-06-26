@@ -128,6 +128,35 @@ describe('GET /api/sessions', () => {
     expect(collectedPaths).toHaveLength(2);
   });
 
+  it('paginates through NULL last_activity rows without skipping any', async () => {
+    const { userId } = await seedUser(env);
+    const { deviceId } = await seedDevice(env, `null-la-${Date.now()}@example.com`);
+    // Two sessions with null lastActivity, one with a real timestamp.
+    await seedSession(env, { userId, deviceId, sessionId: 'null-a', lastActivity: null });
+    await seedSession(env, { userId, deviceId, sessionId: 'null-b', lastActivity: null });
+    await seedSession(env, { userId, deviceId, sessionId: 'nonnull-c', lastActivity: '2026-01-01T00:00:00.000Z' });
+
+    const seededIds = new Set(['null-a', 'null-b', 'nonnull-c']);
+    const collectedIds: string[] = [];
+    let cursor: string | null = null;
+    let pages = 0;
+    do {
+      const url = `/api/sessions?limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+      const res = await asViewer(userId, url);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { sessions: { sessionId: string }[]; nextCursor: string | null };
+      for (const s of body.sessions) {
+        collectedIds.push(s.sessionId);
+      }
+      cursor = body.nextCursor;
+      pages += 1;
+    } while (cursor && pages < 10);
+
+    // All three sessions must appear exactly once — no NULL-activity row skipped.
+    expect(new Set(collectedIds)).toEqual(seededIds);
+    expect(collectedIds).toHaveLength(3);
+  });
+
   it('paginates through device siblings (same source+sessionId+lastActivity+projectPath, different deviceId)', async () => {
     const { userId, deviceId: deviceId1 } = await seedDevice(env, `ds-a-${Date.now()}@example.com`);
     // Insert a second device for the same user directly (seedDevice always creates a new user).

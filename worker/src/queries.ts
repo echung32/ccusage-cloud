@@ -253,7 +253,7 @@ export async function sessionsPage(
     if (c) {
       // (last_activity, source, session_id, device_id, project_path) strictly less than the cursor (descending).
       parts.push(
-        '(s.last_activity < ? OR (s.last_activity = ? AND s.source < ?) OR (s.last_activity = ? AND s.source = ? AND s.session_id < ?) OR (s.last_activity = ? AND s.source = ? AND s.session_id = ? AND s.device_id < ?) OR (s.last_activity = ? AND s.source = ? AND s.session_id = ? AND s.device_id = ? AND s.project_path < ?))',
+        '(COALESCE(s.last_activity, \'\') < ? OR (COALESCE(s.last_activity, \'\') = ? AND s.source < ?) OR (COALESCE(s.last_activity, \'\') = ? AND s.source = ? AND s.session_id < ?) OR (COALESCE(s.last_activity, \'\') = ? AND s.source = ? AND s.session_id = ? AND s.device_id < ?) OR (COALESCE(s.last_activity, \'\') = ? AND s.source = ? AND s.session_id = ? AND s.device_id = ? AND s.project_path < ?))',
       );
       binds.push(c.lastActivity, c.lastActivity, c.source, c.lastActivity, c.source, c.sessionId, c.lastActivity, c.source, c.sessionId, c.deviceId, c.lastActivity, c.source, c.sessionId, c.deviceId, c.projectPath);
     }
@@ -265,7 +265,7 @@ export async function sessionsPage(
                 s.first_activity, s.last_activity, s.models_used, s.project_path
          FROM sessions s
          WHERE ${parts.join(' AND ')}
-         ORDER BY s.last_activity DESC, s.source DESC, s.session_id DESC, s.device_id DESC, s.project_path DESC
+         ORDER BY COALESCE(s.last_activity, '') DESC, s.source DESC, s.session_id DESC, s.device_id DESC, s.project_path DESC
          LIMIT ?`,
       )
       .bind(...binds, limit + 1)
