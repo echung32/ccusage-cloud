@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { loadSessions, type Runner } from '../src/ccusage';
 
 const fixture = readFileSync(join(__dirname, '../fixtures/claude-session.json'), 'utf8');
+const codexFixture = readFileSync(join(__dirname, '../fixtures/codex-session.json'), 'utf8');
 
 describe('loadSessions', () => {
   it('parses, tags source, and drops null sessionId rows', () => {
@@ -102,5 +103,44 @@ describe('loadSessions codex/costUSD + resilience', () => {
     expect(out[0].sessionId).toBe('real');
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('loadSessions codex modelBreakdowns synthesis', () => {
+  it('synthesizes modelBreakdowns from the codex models object', () => {
+    const run: Runner = () => codexFixture;
+    const out = loadSessions('codex', 'ccusage', run);
+    expect(out).toHaveLength(1);
+    expect(out[0].modelBreakdowns).toEqual([
+      {
+        modelName: 'gpt-5.5',
+        inputTokens: 86548,
+        outputTokens: 6985,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 281472,
+        cost: 0.783026, // single model -> full session cost (costUSD)
+      },
+    ]);
+  });
+
+  it('does not leak the raw models object onto the tagged session', () => {
+    const run: Runner = () => codexFixture;
+    const out = loadSessions('codex', 'ccusage', run);
+    expect('models' in out[0]).toBe(false);
+  });
+
+  it('leaves an existing modelBreakdowns untouched (claude path)', () => {
+    const run: Runner = () => fixture; // claude fixture, already has modelBreakdowns
+    const out = loadSessions('claude', 'ccusage', run);
+    expect(out[0].modelBreakdowns).toEqual([
+      { modelName: 'claude-opus-4-8', cost: 0.42 },
+    ]);
+  });
+
+  it('preserves modelBreakdowns key position for sessions that already have it (stable hash)', () => {
+    const run: Runner = () => fixture; // claude fixture: already has modelBreakdowns + projectPath
+    const out = loadSessions('claude', 'ccusage', run);
+    const keys = Object.keys(out[0]);
+    expect(keys.indexOf('modelBreakdowns')).toBeLessThan(keys.indexOf('projectPath'));
   });
 });

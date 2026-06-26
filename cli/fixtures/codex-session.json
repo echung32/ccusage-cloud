@@ -1,0 +1,25 @@
+{
+  "sessions": [
+    {
+      "sessionId": "2026/06/24/rollout-codex-1",
+      "inputTokens": 86548,
+      "outputTokens": 6985,
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 281472,
+      "totalTokens": 375005,
+      "costUSD": 0.783026,
+      "lastActivity": "2026-06-24T00:34:42.256Z",
+      "models": {
+        "gpt-5.5": {
+          "cacheCreationTokens": 0,
+          "cacheReadTokens": 281472,
+          "inputTokens": 86548,
+          "isFallback": false,
+          "outputTokens": 6985,
+          "reasoningOutputTokens": 639,
+          "totalTokens": 375005
+        }
+      }
+    }
+  ]
+}

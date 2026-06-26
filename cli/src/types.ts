@@ -14,6 +14,18 @@ export const SessionRowSchema = v.object({
   lastActivity: v.nullish(v.string()),
   modelsUsed: v.optional(v.array(v.string()), []),
   modelBreakdowns: v.optional(v.unknown()),
+  models: v.optional(
+    v.record(
+      v.string(),
+      v.object({
+        inputTokens: v.number(),
+        outputTokens: v.number(),
+        cacheCreationTokens: v.number(),
+        cacheReadTokens: v.number(),
+        totalTokens: v.number(),
+      }),
+    ),
+  ),
   projectPath: v.nullish(v.string()),
 });
 
@@ -23,7 +35,7 @@ export const SessionFileSchema = v.object({
 
 export type SessionRow = v.InferOutput<typeof SessionRowSchema>;
 
-export type TaggedSession = Omit<SessionRow, 'sessionId' | 'totalCost' | 'costUSD'> & {
+export type TaggedSession = Omit<SessionRow, 'sessionId' | 'totalCost' | 'costUSD' | 'models'> & {
   source: string;
   sessionId: string;
   totalCost: number;
