@@ -6,15 +6,6 @@ CREATE TABLE users (
   created_at      INTEGER NOT NULL
 );
 
--- Allow-list for who may enroll/sign in. In M1 this is populated by the
--- dev-only seed script but NOT enforced at /ingest (ingest is gated by the
--- per-device token alone). The allow-list check is wired into the magic-link
--- enrollment flow in M2.
-CREATE TABLE allowed_emails (
-  email    TEXT PRIMARY KEY,
-  added_at INTEGER NOT NULL
-);
-
 CREATE TABLE devices (
   id           TEXT PRIMARY KEY,
   user_id      TEXT NOT NULL REFERENCES users(id),

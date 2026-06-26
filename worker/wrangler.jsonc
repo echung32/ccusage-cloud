@@ -16,11 +16,8 @@
     }
   ],
   "kv_namespaces": [
-    { "binding": "LOGIN_TOKENS", "id": "7d1912e1f2314028a7c292e16c823bf0" },
-    { "binding": "VIEWER_SESSIONS", "id": "c3c77aaa34d24a2aaaaaf3938792fceb" },
     { "binding": "RATE_LIMITS", "id": "206084b7c0944e98a1730f27254ba436" }
   ],
-  "send_email": [{ "name": "EMAIL" }],
   "assets": {
     "binding": "ASSETS",
     "directory": "../dashboard/dist",
