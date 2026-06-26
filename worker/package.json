@@ -10,7 +10,7 @@
     "seed:device": "tsx scripts/seed-device.ts"
   },
   "dependencies": {
-    "auth-verify": "workspace:^",
+    "auth-verify": "github:echung32/auth-verify#v1",
     "hono": "^4.6.0",
     "jose": "^6.2.3",
     "valibot": "^1.0.0"
