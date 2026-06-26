@@ -20,15 +20,23 @@ function scopeHref(target: 'me' | 'group'): string {
   return qs ? `${path}?${qs}` : path;
 }
 
+// Preserve the active scope when navigating between pages ('me' is the default, so no param).
+function withScope(href: string, scope: 'me' | 'group'): string {
+  return scope === 'group' ? `${href}?scope=group` : href;
+}
+
 export function AppShell({ active, scope = 'me', children }: { active: string; scope?: 'me' | 'group'; children: ReactNode }) {
   const [navOpen, setNavOpen] = useState(true);
   const groupHidden = new Set(['/projects', '/sessions']);
-  const items = scope === 'group' ? NAV.filter((n) => !groupHidden.has(n.href)) : NAV;
+  const items = (scope === 'group' ? NAV.filter((n) => !groupHidden.has(n.href)) : NAV).map((n) => ({
+    ...n,
+    href: withScope(n.href, scope),
+  }));
   return (
     <>
       <div id="top-nav">
         <TopNavigation
-          identity={{ href: '/overview', title: 'ccusage-cloud' }}
+          identity={{ href: withScope('/overview', scope), title: 'ccusage-cloud' }}
           utilities={[
             { type: 'button', text: 'Me', href: scopeHref('me') },
             { type: 'button', text: 'Group', href: scopeHref('group') },
@@ -40,7 +48,7 @@ export function AppShell({ active, scope = 'me', children }: { active: string; s
         toolsHide
         navigationOpen={navOpen}
         onNavigationChange={({ detail }) => setNavOpen(detail.open)}
-        navigation={<SideNavigation activeHref={active} header={{ href: '/overview', text: 'ccusage-cloud' }} items={items} />}
+        navigation={<SideNavigation activeHref={withScope(active, scope)} header={{ href: withScope('/overview', scope), text: 'ccusage-cloud' }} items={items} />}
         content={children}
       />
     </>
