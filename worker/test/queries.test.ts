@@ -51,6 +51,13 @@ describe('summaryQuery', () => {
     expect(src['claude']).toBe(2);
     expect(src['codex']).toBe(1);
 
+    // per-day-per-source breakdown: claude on 06-20 and 06-21, codex only on 06-21
+    const ds = Object.fromEntries(s.byDaySource.map((r) => [`${r.day}|${r.source}`, r.totalTokens]));
+    expect(ds['2026-06-20|claude']).toBe(150);
+    expect(ds['2026-06-21|claude']).toBe(300);
+    expect(ds['2026-06-21|codex']).toBe(15);
+    expect(ds['2026-06-20|codex']).toBeUndefined();
+
     const models = Object.fromEntries(s.byModel.map((r) => [r.model, r.totalTokens]));
     expect(models['claude-opus-4']).toBe(150);
     expect(models['claude-sonnet-4']).toBe(300);

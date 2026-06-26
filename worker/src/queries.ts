@@ -16,6 +16,7 @@ export interface SummaryTotals {
 }
 
 export interface ByDay { day: string; totalTokens: number; totalCost: number }
+export interface ByDaySource { day: string; source: string; totalTokens: number; totalCost: number }
 export interface BySource { source: string; totalTokens: number; totalCost: number; sessions: number }
 export interface ByModel { model: string; totalTokens: number; totalCost: number }
 export interface ByProject { projectPath: string; totalTokens: number; totalCost: number; sessions: number }
@@ -24,6 +25,7 @@ export interface ByDevice { deviceId: string; label: string; totalTokens: number
 export interface Summary {
   totals: SummaryTotals;
   byDay: ByDay[];
+  byDaySource: ByDaySource[];
   bySource: BySource[];
   byModel: ByModel[];
   byProject: ByProject[];
@@ -69,6 +71,17 @@ async function runByDay(db: D1Database, w: WhereClause): Promise<ByDay[]> {
   ).bind(...w.binds).all<ByDay>()).results;
 }
 
+async function runByDaySource(db: D1Database, w: WhereClause): Promise<ByDaySource[]> {
+  return (await db.prepare(
+    `SELECT substr(s.last_activity,1,10) AS day,
+            s.source AS source,
+            COALESCE(SUM(s.total_tokens),0) AS totalTokens,
+            COALESCE(SUM(s.total_cost),0) AS totalCost
+     FROM sessions s WHERE ${w.sql} AND s.last_activity IS NOT NULL
+     GROUP BY day, s.source ORDER BY day, s.source`,
+  ).bind(...w.binds).all<ByDaySource>()).results;
+}
+
 async function runBySource(db: D1Database, w: WhereClause): Promise<BySource[]> {
   return (await db.prepare(
     `SELECT s.source AS source,
@@ -103,9 +116,10 @@ async function runByModel(db: D1Database, w: WhereClause): Promise<ByModel[]> {
 export async function summaryQuery(db: D1Database, userId: string, filters: SummaryFilters): Promise<Summary> {
   const w = buildWhere(userId, filters);
 
-  const [totals, byDay, bySource, byModel] = await Promise.all([
+  const [totals, byDay, byDaySource, bySource, byModel] = await Promise.all([
     runTotals(db, w),
     runByDay(db, w),
+    runByDaySource(db, w),
     runBySource(db, w),
     runByModel(db, w),
   ]);
@@ -140,7 +154,7 @@ export async function summaryQuery(db: D1Database, userId: string, filters: Summ
       .all<ByDevice>()
   ).results;
 
-  return { totals, byDay, bySource, byModel, byProject, byDevice };
+  return { totals, byDay, byDaySource, bySource, byModel, byProject, byDevice };
 }
 
 function buildGroupWhere(f: SummaryFilters): WhereClause {
@@ -155,8 +169,8 @@ function buildGroupWhere(f: SummaryFilters): WhereClause {
 
 export async function groupSummaryQuery(db: D1Database, filters: SummaryFilters): Promise<Summary> {
   const w = buildGroupWhere(filters);
-  const [totals, byDay, bySource, byModel] = await Promise.all([
-    runTotals(db, w), runByDay(db, w), runBySource(db, w), runByModel(db, w),
+  const [totals, byDay, byDaySource, bySource, byModel] = await Promise.all([
+    runTotals(db, w), runByDay(db, w), runByDaySource(db, w), runBySource(db, w), runByModel(db, w),
   ]);
   // per-person contribution (overall-only; reuses the ByDevice shape, label = email)
   const pwParts = ['u.public_to_group = 1'];
@@ -174,7 +188,7 @@ export async function groupSummaryQuery(db: D1Database, filters: SummaryFilters)
      WHERE ${pwParts.join(' AND ')}
      GROUP BY u.id, u.email ORDER BY totalCost DESC`,
   ).bind(...pwBinds).all<ByDevice>()).results;
-  return { totals, byDay, bySource, byModel, byProject: [], byDevice: byPerson };
+  return { totals, byDay, byDaySource, bySource, byModel, byProject: [], byDevice: byPerson };
 }
 
 export interface SessionRow {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import ContentLayout from '@cloudscape-design/components/content-layout';
 import Header from '@cloudscape-design/components/header';
 import Container from '@cloudscape-design/components/container';
@@ -32,6 +32,28 @@ export function Overview() {
   const byDay = summary?.byDay ?? [];
   const totals = summary?.totals;
 
+  // Total line plus one line per source (over the same days), defaulting missing days to 0.
+  // Memoized so each LineChart's `series` identity is stable, keeping its series filter working.
+  const series = useMemo(() => {
+    const rows = summary?.byDay ?? [];
+    const days = rows.map((d) => d.day);
+    const srcs = summary?.bySource.map((s) => s.source) ?? [];
+    const bds = summary?.byDaySource ?? [];
+    const lines = (metric: 'totalTokens' | 'totalCost', totalTitle: string) => {
+      const byKey = new Map(bds.map((r) => [`${r.source} ${r.day}`, r[metric]]));
+      const perSource = srcs.map((src) => ({
+        title: src,
+        type: 'line' as const,
+        data: days.map((day) => ({ x: day, y: byKey.get(`${src} ${day}`) ?? 0 })),
+      }));
+      return [
+        { title: totalTitle, type: 'line' as const, data: rows.map((d) => ({ x: d.day, y: d[metric] })) },
+        ...perSource,
+      ];
+    };
+    return { tokens: lines('totalTokens', 'Total tokens'), cost: lines('totalCost', 'Total cost (USD)') };
+  }, [summary]);
+
   return (
     <AppShell active="/overview" scope={filters.scope ?? 'me'}>
       <ContentLayout header={<Header variant="h1">Overview</Header>}>
@@ -47,12 +69,12 @@ export function Overview() {
             </ColumnLayout>
           </Container>
           <Container header={<Header variant="h2">Tokens over time</Header>}>
-            <LineChart series={[{ title: 'Total tokens', type: 'line', data: byDay.map((d) => ({ x: d.day, y: d.totalTokens })) }]}
+            <LineChart series={series.tokens}
               xScaleType="categorical" height={300} xTitle="Day" yTitle="Tokens" ariaLabel="Tokens over time"
               statusType={loading ? 'loading' : 'finished'} hideFilter empty={<Box textAlign="center" color="inherit">No data</Box>} />
           </Container>
           <Container header={<Header variant="h2">Cost over time</Header>}>
-            <LineChart series={[{ title: 'Total cost (USD)', type: 'line', data: byDay.map((d) => ({ x: d.day, y: d.totalCost })) }]}
+            <LineChart series={series.cost}
               xScaleType="categorical" height={300} xTitle="Day" yTitle="USD" ariaLabel="Cost over time"
               statusType={loading ? 'loading' : 'finished'} hideFilter empty={<Box textAlign="center" color="inherit">No data</Box>} />
           </Container>
