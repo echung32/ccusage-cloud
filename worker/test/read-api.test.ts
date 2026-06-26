@@ -91,4 +91,40 @@ describe('GET /api/sessions', () => {
     const body = (await res.json()) as { sessions: { sessionId: string }[] };
     expect(body.sessions.some((s) => s.sessionId === 'theirs')).toBe(false);
   });
+
+  it('paginates through worktree siblings (same source+sessionId+lastActivity, different projectPath)', async () => {
+    const { userId } = await seedUser(env);
+    const { deviceId } = await seedDevice(env, `wt-${userId}@example.com`);
+    const sharedActivity = '2026-06-20T10:00:00.000Z';
+    // Two rows that share source+sessionId+lastActivity but differ only by projectPath (git-worktree case).
+    await seedSession(env, {
+      userId, deviceId, source: 'claude', sessionId: 'wt-sess',
+      lastActivity: sharedActivity, projectPath: '/work/main',
+    });
+    await seedSession(env, {
+      userId, deviceId, source: 'claude', sessionId: 'wt-sess',
+      lastActivity: sharedActivity, projectPath: '/work/feat',
+    });
+
+    // Collect all sessions by following nextCursor with limit=1.
+    const collectedPaths: string[] = [];
+    let cursor: string | null = null;
+    let pages = 0;
+    do {
+      const url = `/api/sessions?limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+      const res = await asViewer(userId, url);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { sessions: { projectPath: string | null }[]; nextCursor: string | null };
+      for (const s of body.sessions) {
+        collectedPaths.push(s.projectPath ?? '');
+      }
+      cursor = body.nextCursor;
+      pages += 1;
+    } while (cursor && pages < 10);
+
+    // Both project paths must appear exactly once across the paginated results.
+    expect(collectedPaths).toContain('/work/main');
+    expect(collectedPaths).toContain('/work/feat');
+    expect(collectedPaths).toHaveLength(2);
+  });
 });
