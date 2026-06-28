@@ -1,6 +1,7 @@
 import type { Config } from './config';
 import { loadSessions, type Runner } from './ccusage';
 import type { TaggedSession } from './types';
+import { loadDaily, type DailyRow } from './daily';
 import {
   diffSessions,
   loadState,
@@ -22,9 +23,10 @@ export interface SyncOpts {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function postBatch(
-  cfg: Config,
-  batch: TaggedSession[],
+async function postJson(
+  url: URL,
+  body: unknown,
+  token: string,
   fetchFn: typeof fetch,
   retries: number,
 ): Promise<void> {
@@ -32,23 +34,31 @@ async function postBatch(
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     let status = 0;
     try {
-      const res = await fetchFn(new URL('/ingest', cfg.serverUrl), {
+      const res = await fetchFn(url, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.token}` },
-        body: JSON.stringify({ sessions: batch }),
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
       });
       if (res.ok) return;
       status = res.status;
-      // 4xx are not retried (bad payload / auth); 5xx are.
-      if (status < 500) throw new Error(`ingest failed: ${status} ${await res.text()}`);
-      lastErr = new Error(`ingest failed: ${status}`);
+      if (status < 500) throw new Error(`request failed: ${status} ${await res.text()}`);
+      lastErr = new Error(`request failed: ${status}`);
     } catch (err) {
       if (status > 0 && status < 500) throw err; // re-throw 4xx immediately, no retry
       lastErr = err;
     }
     if (attempt < retries) await sleep(250 * 2 ** attempt);
   }
-  throw lastErr instanceof Error ? lastErr : new Error('ingest failed');
+  throw lastErr instanceof Error ? lastErr : new Error('request failed');
+}
+
+async function postBatch(
+  cfg: Config,
+  batch: TaggedSession[],
+  fetchFn: typeof fetch,
+  retries: number,
+): Promise<void> {
+  await postJson(new URL('/ingest', cfg.serverUrl), { sessions: batch }, cfg.token, fetchFn, retries);
 }
 
 export async function syncOnce(
@@ -87,4 +97,25 @@ export async function syncOnce(
     saveState({ hashes: state.hashes, lastSyncAt: Date.now() }, path); // persist after each delivered batch
   }
   return { pushed, skipped: unchanged, chunks };
+}
+
+export async function syncDaily(
+  cfg: Config,
+  sources: string[],
+  opts: { run?: Runner; fetchFn?: typeof fetch; chunkSize?: number; retries?: number } = {},
+): Promise<{ dailyPushed: number }> {
+  const fetchFn = opts.fetchFn ?? fetch;
+  const chunkSize = opts.chunkSize ?? 500;
+  const retries = opts.retries ?? 3;
+
+  const rows: DailyRow[] = [];
+  for (const source of sources) rows.push(...loadDaily(source, cfg.ccusageBin, opts.run));
+
+  let dailyPushed = 0;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const batch = rows.slice(i, i + chunkSize);
+    await postJson(new URL('/ingest/daily', cfg.serverUrl), { days: batch }, cfg.token, fetchFn, retries);
+    dailyPushed += batch.length;
+  }
+  return { dailyPushed };
 }
