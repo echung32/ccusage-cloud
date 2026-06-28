@@ -68,12 +68,14 @@ Replace the three `*-local-placeholder` values in `kv_namespaces`:
 ```sh
 pnpm --filter ccusage-cloud build:bundle   # emits dashboard/public/cli.js
 pnpm --filter dashboard build
-wrangler deploy
 ```
 
-`build:bundle` emits `dashboard/public/cli.js`, which `astro build` then bundles
-into `dashboard/dist` so the Worker serves it at `/cli.js`. If you build the
-dashboard without first running `build:bundle`, `/cli.js` won't be served.
+This produces `dashboard/dist`, which the `assets` binding in `wrangler.jsonc`
+serves as the static frontend. `build:bundle` first emits
+`dashboard/public/cli.js`, which `astro build` folds into `dashboard/dist` so the
+Worker also serves it at `/cli.js`; if you build the dashboard without running
+`build:bundle` first, `/cli.js` won't be served. (The actual deploy happens in
+Step 8.)
 
 ---
 
