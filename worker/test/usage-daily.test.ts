@@ -1,6 +1,9 @@
 import { SELF, env } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
-import { seedDevice } from './seed';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { seedDevice, seedSession } from './seed';
+import { installJwks, mintToken } from './auth-fixture';
+
+beforeAll(() => installJwks());
 
 async function asDevice(token: string, body: unknown) {
   return SELF.fetch('https://example.com/ingest/daily', {
@@ -53,5 +56,46 @@ describe('POST /ingest/daily', () => {
     const { token } = await seedDevice(env);
     const res = await asDevice(token, { days: [{ source: 'x', day: '2025-01-01', totalTokens: 'nan', totalCost: 0 }] });
     expect(res.status).toBe(400);
+  });
+});
+
+async function asViewer(userId: string, path: string) {
+  const token = await mintToken({ sub: userId });
+  return SELF.fetch(`https://example.com${path}`, { headers: { authorization: `Bearer ${token}` } });
+}
+
+async function seedDaily(userId: string, deviceId: string, source: string, day: string, tokens: number, cost: number) {
+  await env.DB.prepare(
+    'INSERT INTO usage_daily (user_id, device_id, source, day, total_tokens, total_cost, updated_at) VALUES (?,?,?,?,?,?,?)',
+  ).bind(userId, deviceId, source, day, tokens, cost, 1).run();
+}
+
+describe('summary byDay reads usage_daily', () => {
+  it('includes dateless-session sources via usage_daily and honors from/to + source filters', async () => {
+    const { userId, deviceId } = await seedDevice(env);
+    // a session with NO dates (the opencode case) — must NOT drive the timeline
+    await seedSession(env, { userId, deviceId, source: 'opencode', lastActivity: null });
+    // usage_daily rows that SHOULD drive the timeline
+    await seedDaily(userId, deviceId, 'opencode', '2025-08-29', 500, 1.0);
+    await seedDaily(userId, deviceId, 'claude', '2026-06-10', 200, 0.5);
+
+    const res = await asViewer(userId, '/api/summary');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { byDay: { day: string; totalTokens: number }[]; byDaySource: { day: string; source: string }[] };
+    const days = body.byDay.map((d) => d.day).sort();
+    expect(days).toContain('2025-08-29'); // opencode history now visible
+    expect(days).toContain('2026-06-10');
+    expect(body.byDaySource.some((r) => r.source === 'opencode' && r.day === '2025-08-29')).toBe(true);
+
+    // from filter clips the early day
+    const clipped = await asViewer(userId, '/api/summary?from=2026-01-01T00:00:00.000Z');
+    const clippedDays = ((await clipped.json()) as { byDay: { day: string }[] }).byDay.map((d) => d.day);
+    expect(clippedDays).not.toContain('2025-08-29');
+    expect(clippedDays).toContain('2026-06-10');
+
+    // source filter narrows to claude
+    const claudeOnly = await asViewer(userId, '/api/summary?source=claude');
+    const coDays = ((await claudeOnly.json()) as { byDay: { day: string }[] }).byDay.map((d) => d.day);
+    expect(coDays).toEqual(['2026-06-10']);
   });
 });

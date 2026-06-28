@@ -63,22 +63,22 @@ async function runTotals(db: D1Database, w: WhereClause): Promise<SummaryTotals>
 
 async function runByDay(db: D1Database, w: WhereClause): Promise<ByDay[]> {
   return (await db.prepare(
-    `SELECT substr(s.last_activity,1,10) AS day,
-            COALESCE(SUM(s.total_tokens),0) AS totalTokens,
-            COALESCE(SUM(s.total_cost),0) AS totalCost
-     FROM sessions s WHERE ${w.sql} AND s.last_activity IS NOT NULL
-     GROUP BY day ORDER BY day`,
+    `SELECT ud.day AS day,
+            COALESCE(SUM(ud.total_tokens),0) AS totalTokens,
+            COALESCE(SUM(ud.total_cost),0) AS totalCost
+     FROM usage_daily ud WHERE ${w.sql}
+     GROUP BY ud.day ORDER BY ud.day`,
   ).bind(...w.binds).all<ByDay>()).results;
 }
 
 async function runByDaySource(db: D1Database, w: WhereClause): Promise<ByDaySource[]> {
   return (await db.prepare(
-    `SELECT substr(s.last_activity,1,10) AS day,
-            s.source AS source,
-            COALESCE(SUM(s.total_tokens),0) AS totalTokens,
-            COALESCE(SUM(s.total_cost),0) AS totalCost
-     FROM sessions s WHERE ${w.sql} AND s.last_activity IS NOT NULL
-     GROUP BY day, s.source ORDER BY day, s.source`,
+    `SELECT ud.day AS day,
+            ud.source AS source,
+            COALESCE(SUM(ud.total_tokens),0) AS totalTokens,
+            COALESCE(SUM(ud.total_cost),0) AS totalCost
+     FROM usage_daily ud WHERE ${w.sql}
+     GROUP BY ud.day, ud.source ORDER BY ud.day, ud.source`,
   ).bind(...w.binds).all<ByDaySource>()).results;
 }
 
@@ -115,11 +115,12 @@ async function runByModel(db: D1Database, w: WhereClause): Promise<ByModel[]> {
 
 export async function summaryQuery(db: D1Database, userId: string, filters: SummaryFilters): Promise<Summary> {
   const w = buildWhere(userId, filters);
+  const wd = buildDailyWhere(userId, filters);
 
   const [totals, byDay, byDaySource, bySource, byModel] = await Promise.all([
     runTotals(db, w),
-    runByDay(db, w),
-    runByDaySource(db, w),
+    runByDay(db, wd),
+    runByDaySource(db, wd),
     runBySource(db, w),
     runByModel(db, w),
   ]);
@@ -157,6 +158,26 @@ export async function summaryQuery(db: D1Database, userId: string, filters: Summ
   return { totals, byDay, byDaySource, bySource, byModel, byProject, byDevice };
 }
 
+function buildDailyWhere(userId: string, f: SummaryFilters): WhereClause {
+  const parts = ['ud.user_id = ?'];
+  const binds: string[] = [userId];
+  if (f.from) { parts.push('ud.day >= substr(?,1,10)'); binds.push(f.from); }
+  if (f.to) { parts.push('ud.day <= substr(?,1,10)'); binds.push(f.to); }
+  if (f.source) { parts.push('ud.source = ?'); binds.push(f.source); }
+  if (f.device) { parts.push('ud.device_id = ?'); binds.push(f.device); }
+  return { sql: parts.join(' AND '), binds };
+}
+
+function buildGroupDailyWhere(f: SummaryFilters): WhereClause {
+  const parts = ['ud.user_id IN (SELECT id FROM users WHERE public_to_group = 1)'];
+  const binds: string[] = [];
+  if (f.from) { parts.push('ud.day >= substr(?,1,10)'); binds.push(f.from); }
+  if (f.to) { parts.push('ud.day <= substr(?,1,10)'); binds.push(f.to); }
+  if (f.source) { parts.push('ud.source = ?'); binds.push(f.source); }
+  // device filter intentionally ignored in group scope (device ids are per-user).
+  return { sql: parts.join(' AND '), binds };
+}
+
 function buildGroupWhere(f: SummaryFilters): WhereClause {
   const parts = ['s.user_id IN (SELECT id FROM users WHERE public_to_group = 1)'];
   const binds: string[] = [];
@@ -169,8 +190,9 @@ function buildGroupWhere(f: SummaryFilters): WhereClause {
 
 export async function groupSummaryQuery(db: D1Database, filters: SummaryFilters): Promise<Summary> {
   const w = buildGroupWhere(filters);
+  const wd = buildGroupDailyWhere(filters);
   const [totals, byDay, byDaySource, bySource, byModel] = await Promise.all([
-    runTotals(db, w), runByDay(db, w), runByDaySource(db, w), runBySource(db, w), runByModel(db, w),
+    runTotals(db, w), runByDay(db, wd), runByDaySource(db, wd), runBySource(db, w), runByModel(db, w),
   ]);
   // per-person contribution (overall-only; reuses the ByDevice shape, label = email)
   const pwParts = ['u.public_to_group = 1'];
