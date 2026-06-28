@@ -1,4 +1,4 @@
-import type { Me, Summary, SessionsPage, Filters } from './types';
+import type { Me, Summary, SessionsPage, Filters, EnrollCode } from './types';
 
 const GATEWAY = import.meta.env.PUBLIC_AUTH_GATEWAY ?? 'https://auth.ethanchung.dev';
 
@@ -49,6 +49,10 @@ export async function patchMe(publicToGroup: boolean): Promise<{ publicToGroup: 
 
 export async function createDevice(label: string): Promise<{ id: string; token: string }> {
   return json(await fetch('/api/devices', { ...base, method: 'POST', headers: jsonHeaders, body: JSON.stringify({ label }) }));
+}
+
+export async function createEnrollLink(): Promise<EnrollCode> {
+  return json(await fetch('/api/enroll-codes', { ...base, method: 'POST', headers: jsonHeaders }));
 }
 
 export async function deleteDevice(id: string): Promise<{ ok: true }> {
