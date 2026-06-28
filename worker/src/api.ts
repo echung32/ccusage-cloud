@@ -4,6 +4,7 @@ import type { AppBindings } from './env';
 import { requireUser } from './viewer';
 import { randomToken } from './tokens';
 import { sha256Hex } from './crypto';
+import { mintEnrollCode } from './enroll';
 
 export const apiRoutes = new Hono<AppBindings>();
 
@@ -52,6 +53,8 @@ apiRoutes.post('/api/devices', async (c) => {
     .run();
   return c.json({ id, token }); // plaintext shown once
 });
+
+apiRoutes.post('/api/enroll-codes', mintEnrollCode);
 
 apiRoutes.delete('/api/devices/:id', async (c) => {
   const { userId } = c.var.viewer;

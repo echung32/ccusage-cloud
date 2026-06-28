@@ -13,12 +13,14 @@ Usage:
 
 Commands:
   login    Save credentials for a ccusage-cloud server
+  enroll   Redeem a one-time enroll code from the dashboard
   sync     Push new/changed sessions to the server
   status   Show server config, last sync time, and pending sessions
 
 Options:
   --server <url>      Server URL (login)
   --token <token>     Device token (login)
+  --code <code>       One-time enroll code (enroll)
   --ccusage-bin <bin> Path to the ccusage binary (login, default: ccusage)
   --source <source>   Limit to a single source (sync, status)
   --full              Push all sessions, not just changed ones (sync)
@@ -39,6 +41,7 @@ export async function run(argv: string[], runner?: Runner): Promise<number> {
       options: {
         token: { type: 'string' },
         server: { type: 'string' },
+        code: { type: 'string' },
         'ccusage-bin': { type: 'string' },
         source: { type: 'string' },
         full: { type: 'boolean' },
@@ -75,6 +78,27 @@ export async function run(argv: string[], runner?: Runner): Promise<number> {
       redactProjects: values['redact-projects'] ?? false,
     });
     console.log('Saved credentials.');
+    return 0;
+  }
+
+  if (cmd === 'enroll') {
+    if (!values.server || !values.code) {
+      console.error('enroll requires --server <url> and --code <code>');
+      return 1;
+    }
+    const { enrollDevice } = await import('./enroll');
+    try {
+      await enrollDevice({
+        serverUrl: values.server,
+        code: values.code,
+        ccusageBin: values['ccusage-bin'],
+        redactProjects: values['redact-projects'] ?? false,
+      });
+    } catch (err) {
+      console.error((err as Error).message);
+      return 1;
+    }
+    console.log('Enrolled this device.');
     return 0;
   }
 

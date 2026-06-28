@@ -36,6 +36,29 @@ The built binary is `cli/bin/ccusage-cloud.js`. Add it to your `PATH` or use `no
 
 ## Usage
 
+### Quick enroll (recommended)
+
+In the dashboard **Settings → Devices**, click **Generate enroll command** and run
+the printed one-liner on the target machine:
+
+```sh
+# Linux / macOS
+curl -fsSL "https://<your-worker>/i.sh?c=<code>" | sh
+```
+```powershell
+# Windows (PowerShell)
+irm "https://<your-worker>/i.ps1?c=<code>" | iex
+```
+
+The link is single-use and expires in ~15 minutes. It downloads the CLI from your
+own Worker, registers the machine (named after its hostname), and runs one sync.
+Re-run `node ~/.config/ccusage-cloud/cli.js sync` (or add it to cron / Task
+Scheduler) to sync again. Node ≥ 20 and `ccusage` must be on `PATH`.
+
+The manual `login --token` flow below remains available as a fallback.
+
+---
+
 ### `login` — save credentials
 
 ```sh

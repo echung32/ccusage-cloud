@@ -10,14 +10,16 @@ import Input from '@cloudscape-design/components/input';
 import FormField from '@cloudscape-design/components/form-field';
 import Alert from '@cloudscape-design/components/alert';
 import Box from '@cloudscape-design/components/box';
-import { getMe, patchMe, createDevice, deleteDevice, logout } from '@/lib/api';
-import type { Me, DeviceInfo } from '@/lib/types';
+import { getMe, patchMe, createDevice, deleteDevice, logout, createEnrollLink } from '@/lib/api';
+import { buildInstallCommands } from '@/lib/install';
+import type { Me, DeviceInfo, EnrollCode } from '@/lib/types';
 import { AppShell } from '@/components/AppShell';
 
 export function SettingsDevices() {
   const [me, setMe] = useState<Me | null>(null);
   const [label, setLabel] = useState('');
   const [newToken, setNewToken] = useState<string | null>(null);
+  const [enroll, setEnroll] = useState<EnrollCode | null>(null);
 
   function refresh() { getMe().then(setMe).catch(() => setMe(null)); }
   useEffect(() => { refresh(); }, []);
@@ -29,6 +31,9 @@ export function SettingsDevices() {
     setNewToken(token); setLabel(''); refresh();
   }
   async function revoke(id: string) { await deleteDevice(id); refresh(); }
+  async function enrollLink() {
+    setEnroll(await createEnrollLink());
+  }
 
   const devices = me?.devices ?? [];
 
@@ -57,6 +62,20 @@ export function SettingsDevices() {
               {newToken && (
                 <Alert type="warning" header="Copy this token now — it is shown only once">
                   <Box variant="code">{newToken}</Box>
+                </Alert>
+              )}
+              <FormField label="Enroll a new device with one command" description="Generates a one-time link (valid ~15 min) that registers the machine and syncs it.">
+                <Button onClick={enrollLink}>Generate enroll command</Button>
+              </FormField>
+              {enroll && (
+                <Alert type="info" header="Run one of these on the new machine">
+                  <SpaceBetween size="xs">
+                    <Box variant="awsui-key-label">Linux / macOS</Box>
+                    <Box variant="code">{buildInstallCommands(window.location.origin, enroll.code).sh}</Box>
+                    <Box variant="awsui-key-label">Windows (PowerShell)</Box>
+                    <Box variant="code">{buildInstallCommands(window.location.origin, enroll.code).ps1}</Box>
+                    <Box variant="small">Expires {new Date(enroll.expiresAt).toLocaleTimeString()} · single use.</Box>
+                  </SpaceBetween>
                 </Alert>
               )}
             </SpaceBetween>

@@ -66,11 +66,16 @@ Replace the three `*-local-placeholder` values in `kv_namespaces`:
 ## Step 3 — Build the dashboard
 
 ```sh
+pnpm --filter ccusage-cloud build:bundle   # emits dashboard/public/cli.js
 pnpm --filter dashboard build
 ```
 
 This produces `dashboard/dist`, which the `assets` binding in `wrangler.jsonc`
-serves as the static frontend.
+serves as the static frontend. `build:bundle` first emits
+`dashboard/public/cli.js`, which `astro build` folds into `dashboard/dist` so the
+Worker also serves it at `/cli.js`; if you build the dashboard without running
+`build:bundle` first, `/cli.js` won't be served. (The actual deploy happens in
+Step 8.)
 
 ---
 
@@ -215,6 +220,7 @@ and publishes the Worker to the custom domain configured in Step 7.
 For subsequent deploys (code changes only, resources already provisioned):
 
 ```sh
+pnpm --filter ccusage-cloud build:bundle   # emits dashboard/public/cli.js
 pnpm --filter dashboard build
 wrangler deploy
 ```

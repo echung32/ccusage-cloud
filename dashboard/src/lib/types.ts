@@ -11,3 +11,4 @@ export interface Summary { totals: SummaryTotals; byDay: ByDay[]; byDaySource: B
 export interface SessionItem { source: string; sessionId: string; deviceId: string; totalTokens: number; totalCost: number; firstActivity: string | null; lastActivity: string | null; modelsUsed: string[]; projectPath: string | null }
 export interface SessionsPage { sessions: SessionItem[]; nextCursor: string | null }
 export interface Filters { from?: string; to?: string; source?: string; device?: string; scope?: 'me' | 'group' }
+export interface EnrollCode { code: string; expiresAt: number }
