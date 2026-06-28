@@ -25,3 +25,16 @@ export const IngestSchema = v.object({
 });
 
 export type SessionPayload = v.InferOutput<typeof SessionSchema>;
+
+export const DailyRowSchema = v.object({
+  source: v.string(),
+  day: v.string(),
+  totalTokens: v.number(),
+  totalCost: v.number(),
+});
+
+export const IngestDailySchema = v.object({
+  days: v.pipe(v.array(DailyRowSchema), v.maxLength(1000)),
+});
+
+export type DailyPayload = v.InferOutput<typeof DailyRowSchema>;

@@ -1,4 +1,4 @@
-import type { SessionPayload } from './schema';
+import type { SessionPayload, DailyPayload } from './schema';
 
 const UPSERT = `
 INSERT INTO sessions (
@@ -54,4 +54,29 @@ export async function upsertSessions(
   );
   await db.batch(batch);
   return sessions.length;
+}
+
+const UPSERT_DAILY = `
+INSERT INTO usage_daily (user_id, device_id, source, day, total_tokens, total_cost, updated_at)
+VALUES (?,?,?,?,?,?,?)
+ON CONFLICT (user_id, device_id, source, day) DO UPDATE SET
+  total_tokens = excluded.total_tokens,
+  total_cost   = excluded.total_cost,
+  updated_at   = excluded.updated_at
+`;
+
+export async function upsertDaily(
+  db: D1Database,
+  userId: string,
+  deviceId: string,
+  rows: DailyPayload[],
+): Promise<number> {
+  if (rows.length === 0) return 0;
+  const now = Date.now();
+  const stmt = db.prepare(UPSERT_DAILY);
+  const batch = rows.map((r) =>
+    stmt.bind(userId, deviceId, r.source, r.day, r.totalTokens, r.totalCost, now),
+  );
+  await db.batch(batch);
+  return rows.length;
 }

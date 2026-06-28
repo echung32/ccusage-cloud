@@ -2,8 +2,8 @@ import { Hono } from 'hono';
 import * as v from 'valibot';
 import type { AppBindings } from './env';
 import { deviceAuth } from './auth';
-import { IngestSchema } from './schema';
-import { upsertSessions } from './db';
+import { IngestSchema, IngestDailySchema } from './schema';
+import { upsertSessions, upsertDaily } from './db';
 import { apiRoutes } from './api';
 import { readApiRoutes } from './read_api';
 import { bootstrapRoutes } from './bootstrap';
@@ -30,6 +30,22 @@ app.post('/ingest', deviceAuth, async (c) => {
     .bind(Date.now(), deviceId)
     .run();
   return c.json({ upserted, skipped: 0 });
+});
+
+app.post('/ingest/daily', deviceAuth, async (c) => {
+  const rl = await rateLimit(c.env.RATE_LIMITS, `ingest-daily:${c.var.device.deviceId}`, 600, 60);
+  if (!rl.ok) return c.json({ error: 'rate limited' }, 429);
+  const body = await c.req.json().catch(() => null);
+  const parsed = v.safeParse(IngestDailySchema, body);
+  if (!parsed.success) {
+    return c.json({ error: 'invalid payload' }, 400);
+  }
+  const { userId, deviceId } = c.var.device;
+  const upserted = await upsertDaily(c.env.DB, userId, deviceId, parsed.output.days);
+  await c.env.DB.prepare('UPDATE devices SET last_seen_at = ? WHERE id = ?')
+    .bind(Date.now(), deviceId)
+    .run();
+  return c.json({ upserted });
 });
 
 app.post('/api/enroll', redeemEnrollCode);
