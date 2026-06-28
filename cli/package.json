@@ -6,7 +6,7 @@
   "bin": { "ccusage-cloud": "bin/ccusage-cloud.js" },
   "scripts": {
     "build": "tsup src/index.ts --format esm --out-dir dist --clean",
-    "build:bundle": "tsup src/index.ts --format esm --no-splitting --minify --out-dir bundle --clean && node -e \"require('fs').mkdirSync('../dashboard/public',{recursive:true});require('fs').copyFileSync('bundle/index.js','../dashboard/public/cli.js')\"",
+    "build:bundle": "tsup --config tsup.bundle.config.ts && node -e \"require('fs').mkdirSync('../dashboard/public',{recursive:true});require('fs').copyFileSync('bundle/index.js','../dashboard/public/cli.js')\"",
     "test": "vitest run"
   },
   "dependencies": {
