@@ -30,6 +30,16 @@ async function setupTwoDevicesTwoSources() {
     modelsUsed: ['gpt-5'],
     modelBreakdowns: [{ modelName: 'gpt-5', inputTokens: 10, outputTokens: 5, cacheCreationTokens: 0, cacheReadTokens: 0, cost: 0.5 }],
   });
+  // Timeline (byDay/byDaySource) now reads usage_daily — seed rows matching the sessions above.
+  for (const r of [
+    { d: dA, source: 'claude', day: '2026-06-20', tokens: 150, cost: 1 },
+    { d: dA, source: 'claude', day: '2026-06-21', tokens: 300, cost: 2 },
+    { d: dB, source: 'codex', day: '2026-06-21', tokens: 15, cost: 0.5 },
+  ]) {
+    await env.DB.prepare(
+      'INSERT INTO usage_daily (user_id, device_id, source, day, total_tokens, total_cost, updated_at) VALUES (?,?,?,?,?,?,?)',
+    ).bind(userId, r.d, r.source, r.day, r.tokens, r.cost, 1).run();
+  }
   return { userId, dA, dB };
 }
 

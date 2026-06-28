@@ -5,7 +5,7 @@ import { SessionRowSchema, type TaggedSession } from './types';
 
 export type Runner = (bin: string, args: string[]) => string;
 
-const defaultRunner: Runner = (bin, args) =>
+export const defaultRunner: Runner = (bin, args) =>
   execFileSync(bin, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
 
 const FileShape = v.object({ sessions: v.array(v.unknown()) });

@@ -110,9 +110,10 @@ export async function run(argv: string[], runner?: Runner): Promise<number> {
     }
     const cfg2 = { ...cfg, redactProjects: values['redact-projects'] ?? cfg.redactProjects ?? false };
     const sources = values.source ? [values.source] : [...ALL_SOURCES];
-    const { syncOnce } = await import('./sync');
+    const { syncOnce, syncDaily } = await import('./sync');
     const { pushed, skipped } = await syncOnce(cfg2, sources, { full: values.full ?? false, run: runner });
-    console.log(`Pushed ${pushed} sessions (${skipped} unchanged).`);
+    const { dailyPushed } = await syncDaily(cfg2, sources, { run: runner });
+    console.log(`Pushed ${pushed} sessions (${skipped} unchanged); ${dailyPushed} daily rows.`);
     return 0;
   }
 
