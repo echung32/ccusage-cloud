@@ -8,6 +8,7 @@ import { apiRoutes } from './api';
 import { readApiRoutes } from './read_api';
 import { rateLimit } from './ratelimit';
 import { safeLog } from './log';
+import { redeemEnrollCode } from './enroll';
 
 const app = new Hono<AppBindings>();
 
@@ -29,6 +30,8 @@ app.post('/ingest', deviceAuth, async (c) => {
     .run();
   return c.json({ upserted, skipped: 0 });
 });
+
+app.post('/api/enroll', redeemEnrollCode);
 
 app.route('/', apiRoutes);
 app.route('/', readApiRoutes);

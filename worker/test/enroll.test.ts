@@ -51,3 +51,70 @@ describe('POST /api/enroll-codes', () => {
     expect(row?.used_at).toBeNull();
   });
 });
+
+async function mintCode(userId: string): Promise<string> {
+  const res = await asViewer(userId, '/api/enroll-codes', { method: 'POST' });
+  return ((await res.json()) as { code: string }).code;
+}
+
+async function redeem(code: string, label = 'test-host') {
+  return SELF.fetch('https://example.com/api/enroll', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code, label }),
+  });
+}
+
+describe('POST /api/enroll', () => {
+  it('redeems a code into a device and marks the code used', async () => {
+    const { userId } = await seedUser(env);
+    const code = await mintCode(userId);
+    const res = await redeem(code, 'my-laptop');
+    expect(res.status).toBe(200);
+    const { id, token } = (await res.json()) as { id: string; token: string };
+    expect(token.startsWith('cccloud_')).toBe(true);
+
+    const device = await env.DB.prepare('SELECT user_id, label, token_sha256 FROM devices WHERE id = ?')
+      .bind(id)
+      .first<{ user_id: string; label: string; token_sha256: string }>();
+    expect(device?.user_id).toBe(userId);
+    expect(device?.label).toBe('my-laptop');
+    expect(device?.token_sha256).toBe(await sha256Hex(token));
+
+    const used = await env.DB.prepare('SELECT used_at FROM enroll_codes WHERE code_sha256 = ?')
+      .bind(await sha256Hex(code))
+      .first<{ used_at: number | null }>();
+    expect(used?.used_at).not.toBeNull();
+  });
+
+  it('410s on a second redemption of the same code', async () => {
+    const { userId } = await seedUser(env);
+    const code = await mintCode(userId);
+    expect((await redeem(code)).status).toBe(200);
+    expect((await redeem(code)).status).toBe(410);
+  });
+
+  it('410s on an unknown code', async () => {
+    expect((await redeem('ec_does_not_exist')).status).toBe(410);
+  });
+
+  it('410s on an expired code', async () => {
+    const { userId } = await seedUser(env);
+    const code = await mintCode(userId);
+    await env.DB.prepare('UPDATE enroll_codes SET expires_at = ? WHERE code_sha256 = ?')
+      .bind(Date.now() - 1000, await sha256Hex(code))
+      .run();
+    expect((await redeem(code)).status).toBe(410);
+  });
+
+  it('400s on a missing label', async () => {
+    const { userId } = await seedUser(env);
+    const code = await mintCode(userId);
+    const res = await SELF.fetch('https://example.com/api/enroll', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    expect(res.status).toBe(400);
+  });
+});
