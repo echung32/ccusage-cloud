@@ -6,6 +6,7 @@ import { IngestSchema } from './schema';
 import { upsertSessions } from './db';
 import { apiRoutes } from './api';
 import { readApiRoutes } from './read_api';
+import { bootstrapRoutes } from './bootstrap';
 import { rateLimit } from './ratelimit';
 import { safeLog } from './log';
 import { redeemEnrollCode } from './enroll';
@@ -35,6 +36,7 @@ app.post('/api/enroll', redeemEnrollCode);
 
 app.route('/', apiRoutes);
 app.route('/', readApiRoutes);
+app.route('/', bootstrapRoutes);
 
 // Non-API paths are served by the static dashboard via the Assets binding.
 // Registered last so /health, /ingest, and /api/* always win.
