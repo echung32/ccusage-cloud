@@ -104,3 +104,61 @@ describe('PATCH /api/me', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('PATCH /api/devices/:id (rename)', () => {
+  async function mint(userId: string, label: string): Promise<string> {
+    const res = await asViewer(userId, '/api/devices', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ label }),
+    });
+    return ((await res.json()) as { id: string }).id;
+  }
+
+  it('renames a device the viewer owns', async () => {
+    const { userId } = await seedUser(env);
+    const id = await mint(userId, 'old-name');
+    const res = await asViewer(userId, `/api/devices/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ label: 'new-name' }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    const row = await env.DB.prepare('SELECT label FROM devices WHERE id = ?').bind(id).first<{ label: string }>();
+    expect(row?.label).toBe('new-name');
+  });
+
+  it('404s renaming a device the viewer does not own', async () => {
+    const { userId } = await seedUser(env);
+    const id = await mint(userId, 'mine');
+    const { userId: other } = await seedUser(env);
+    const res = await asViewer(other, `/api/devices/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ label: 'hijack' }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('404s an unknown device id', async () => {
+    const { userId } = await seedUser(env);
+    const res = await asViewer(userId, '/api/devices/dev_does_not_exist', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ label: 'whatever' }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects an empty label', async () => {
+    const { userId } = await seedUser(env);
+    const id = await mint(userId, 'real');
+    const res = await asViewer(userId, `/api/devices/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ label: '' }),
+    });
+    expect(res.status).toBe(400);
+  });
+});

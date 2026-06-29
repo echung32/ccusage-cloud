@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import * as v from 'valibot';
 import type { AppBindings } from './env';
 import { requireUser } from './viewer';
+import { viewerRateLimit } from './viewer_ratelimit';
 import { randomToken } from './tokens';
 import { sha256Hex } from './crypto';
 import { mintEnrollCode } from './enroll';
@@ -9,6 +10,7 @@ import { mintEnrollCode } from './enroll';
 export const apiRoutes = new Hono<AppBindings>();
 
 apiRoutes.use('/api/*', requireUser);
+apiRoutes.use('/api/*', viewerRateLimit);
 
 apiRoutes.get('/api/me', async (c) => {
   const { userId } = c.var.viewer;
@@ -35,7 +37,9 @@ apiRoutes.get('/api/me', async (c) => {
   });
 });
 
-const NewDeviceSchema = v.object({ label: v.pipe(v.string(), v.minLength(1), v.maxLength(100)) });
+const LabelSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(100));
+const NewDeviceSchema = v.object({ label: LabelSchema });
+const RenameDeviceSchema = v.object({ label: LabelSchema });
 
 apiRoutes.post('/api/devices', async (c) => {
   const { userId } = c.var.viewer;
@@ -63,6 +67,21 @@ apiRoutes.delete('/api/devices/:id', async (c) => {
     'UPDATE devices SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL',
   )
     .bind(Date.now(), id, userId)
+    .run();
+  if (result.meta.changes === 0) return c.json({ error: 'not found' }, 404);
+  return c.json({ ok: true });
+});
+
+apiRoutes.patch('/api/devices/:id', async (c) => {
+  const { userId } = c.var.viewer;
+  const id = c.req.param('id');
+  const body = await c.req.json().catch(() => null);
+  const parsed = v.safeParse(RenameDeviceSchema, body);
+  if (!parsed.success) return c.json({ error: 'invalid label' }, 400);
+  const result = await c.env.DB.prepare(
+    'UPDATE devices SET label = ? WHERE id = ? AND user_id = ?',
+  )
+    .bind(parsed.output.label, id, userId)
     .run();
   if (result.meta.changes === 0) return c.json({ error: 'not found' }, 404);
   return c.json({ ok: true });

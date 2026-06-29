@@ -2,11 +2,13 @@ import { Hono } from 'hono';
 import * as v from 'valibot';
 import type { AppBindings } from './env';
 import { requireUser } from './viewer';
+import { viewerRateLimit } from './viewer_ratelimit';
 import { summaryQuery, sessionsPage, groupSummaryQuery, clampLimit, type SummaryFilters } from './queries';
 
 export const readApiRoutes = new Hono<AppBindings>();
 
 readApiRoutes.use('/api/*', requireUser);
+readApiRoutes.use('/api/*', viewerRateLimit);
 
 const FiltersSchema = v.object({
   from: v.optional(v.string()),

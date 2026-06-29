@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getMe, getSummary, getSessions, createDevice, deleteDevice, patchMe, logout } from '../api';
+import { getMe, getSummary, getSessions, createDevice, deleteDevice, patchMe, logout, renameDevice } from '../api';
 
 function mockFetch(body: unknown, status = 200) {
   return vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
@@ -71,6 +71,16 @@ describe('api client', () => {
     vi.stubGlobal('location', { href: 'http://localhost/' } as unknown as Location);
     vi.stubGlobal('fetch', mockFetch({ error: 'nope' }, 401));
     await expect(getMe()).rejects.toThrow();
+  });
+
+  it('renameDevice PATCHes the new label by id', async () => {
+    const f = mockFetch({ ok: true });
+    vi.stubGlobal('fetch', f);
+    await renameDevice('dev1', 'new-name');
+    expect(f).toHaveBeenCalledWith(
+      '/api/devices/dev1',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ label: 'new-name' }) }),
+    );
   });
 
   it('getSummary serializes scope=group', async () => {
