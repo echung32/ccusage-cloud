@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { secureHeaders } from 'hono/secure-headers';
 import * as v from 'valibot';
 import type { AppBindings } from './env';
 import { deviceAuth } from './auth';
@@ -12,6 +13,18 @@ import { safeLog } from './log';
 import { redeemEnrollCode } from './enroll';
 
 const app = new Hono<AppBindings>();
+
+// Security headers on every response (API + dashboard assets). Registered first
+// so it also wraps the asset fallback below.
+// NOTE: Content-Security-Policy is intentionally omitted — Cloudscape + Astro/React
+// islands need a tuned policy (inline styles / nonces); a strict CSP shipped blind
+// breaks the dashboard. Tracked as separate future work.
+app.use('*', secureHeaders({
+  strictTransportSecurity: 'max-age=31536000; includeSubDomains',
+  xContentTypeOptions: 'nosniff',
+  xFrameOptions: 'DENY',
+  referrerPolicy: 'strict-origin-when-cross-origin',
+}));
 
 app.get('/health', (c) => c.json({ ok: true }));
 
