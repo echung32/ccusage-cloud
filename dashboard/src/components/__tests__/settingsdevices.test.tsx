@@ -31,4 +31,19 @@ describe('SettingsDevices', () => {
     await userEvent.click(screen.getByRole('button', { name: /add device/i }));
     await waitFor(() => expect(screen.getByText('cccloud_secret')).toBeInTheDocument());
   });
+
+  it('renames a device inline', async () => {
+    const f = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/devices/d1' && init?.method === 'PATCH') return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify(me), { status: 200 }));
+    });
+    vi.stubGlobal('fetch', f);
+    render(<SettingsDevices />);
+    await waitFor(() => expect(screen.getByText('laptop')).toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: /edit device name/i }));
+    const input = await screen.findByLabelText('device name input');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'workstation{Enter}');
+    await waitFor(() => expect(f).toHaveBeenCalledWith('/api/devices/d1', expect.objectContaining({ method: 'PATCH' })));
+  });
 });

@@ -59,6 +59,10 @@ export async function deleteDevice(id: string): Promise<{ ok: true }> {
   return json(await fetch(`/api/devices/${id}`, { ...base, method: 'DELETE' }));
 }
 
+export async function renameDevice(id: string, label: string): Promise<{ ok: true }> {
+  return json(await fetch(`/api/devices/${id}`, { ...base, method: 'PATCH', headers: jsonHeaders, body: JSON.stringify({ label }) }));
+}
+
 export async function getSummary(filters: Filters): Promise<Summary> {
   return json<Summary>(await fetch(`/api/summary${qs(filters)}`, { ...base }));
 }

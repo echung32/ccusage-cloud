@@ -10,7 +10,7 @@ import Input from '@cloudscape-design/components/input';
 import FormField from '@cloudscape-design/components/form-field';
 import Alert from '@cloudscape-design/components/alert';
 import Box from '@cloudscape-design/components/box';
-import { getMe, patchMe, createDevice, deleteDevice, logout, createEnrollLink } from '@/lib/api';
+import { getMe, patchMe, createDevice, deleteDevice, logout, createEnrollLink, renameDevice } from '@/lib/api';
 import { buildInstallCommands } from '@/lib/install';
 import type { Me, DeviceInfo, EnrollCode } from '@/lib/types';
 import { AppShell } from '@/components/AppShell';
@@ -48,9 +48,28 @@ export function SettingsDevices() {
           </Container>
           <Container header={<Header variant="h2">Devices</Header>}>
             <SpaceBetween size="m">
-              <Table variant="embedded" items={devices} trackBy="id" empty={<Box textAlign="center" color="inherit">No devices</Box>}
+              <Table variant="embedded" items={devices} trackBy="id"
+                ariaLabels={{ activateEditLabel: () => 'Edit device name' }}
+                submitEdit={async (item: DeviceInfo, _column, newValue) => {
+                  const label = String(newValue).trim();
+                  if (label) await renameDevice(item.id, label);
+                  refresh();
+                }}
+                empty={<Box textAlign="center" color="inherit">No devices</Box>}
                 columnDefinitions={[
-                  { id: 'label', header: 'Device', cell: (d: DeviceInfo) => (d.revokedAt ? `${d.label} (revoked)` : d.label) },
+                  {
+                    id: 'label',
+                    header: 'Device',
+                    cell: (d: DeviceInfo) => (d.revokedAt ? `${d.label} (revoked)` : d.label),
+                    editConfig: {
+                      ariaLabel: 'Edit device name',
+                      editIconAriaLabel: 'editable',
+                      editingCell: (d: DeviceInfo, ctx: { currentValue: string | undefined; setValue: (v: string) => void }) => (
+                        <Input autoFocus ariaLabel="device name input" value={ctx.currentValue ?? d.label}
+                          onChange={({ detail }) => ctx.setValue(detail.value)} />
+                      ),
+                    },
+                  },
                   { id: 'actions', header: '', cell: (d: DeviceInfo) => (d.revokedAt ? '—' : <Button onClick={() => revoke(d.id)}>Revoke</Button>) },
                 ]} />
               <FormField label="New device">
