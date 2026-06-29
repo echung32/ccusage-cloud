@@ -40,7 +40,7 @@ describe('SettingsDevices', () => {
     vi.stubGlobal('fetch', f);
     render(<SettingsDevices />);
     await waitFor(() => expect(screen.getByText('laptop')).toBeInTheDocument());
-    await userEvent.click(screen.getByRole('button', { name: /edit device name/i }));
+    await userEvent.click(screen.getByRole('button', { name: /edit laptop/i }));
     const input = await screen.findByLabelText('device name input');
     await userEvent.clear(input);
     await userEvent.type(input, 'workstation{Enter}');

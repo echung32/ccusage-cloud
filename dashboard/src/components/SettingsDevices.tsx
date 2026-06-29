@@ -49,7 +49,11 @@ export function SettingsDevices() {
           <Container header={<Header variant="h2">Devices</Header>}>
             <SpaceBetween size="m">
               <Table variant="embedded" items={devices} trackBy="id"
-                ariaLabels={{ activateEditLabel: () => 'Edit device name' }}
+                ariaLabels={{
+                  activateEditLabel: (_column, item: DeviceInfo) => `Edit ${item.label}`,
+                  cancelEditLabel: () => 'Cancel renaming device',
+                  submitEditLabel: () => 'Submit device name',
+                }}
                 submitEdit={async (item: DeviceInfo, _column, newValue) => {
                   const label = String(newValue).trim();
                   if (label) await renameDevice(item.id, label);
