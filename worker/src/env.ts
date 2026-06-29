@@ -15,5 +15,5 @@ export interface ViewerContext {
 
 export type AppBindings = {
   Bindings: Env;
-  Variables: { device: DeviceContext; viewer: ViewerContext };
+  Variables: { device: DeviceContext; viewer: ViewerContext; rlChecked?: boolean };
 };

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import * as v from 'valibot';
 import type { AppBindings } from './env';
 import { requireUser } from './viewer';
+import { viewerRateLimit } from './viewer_ratelimit';
 import { randomToken } from './tokens';
 import { sha256Hex } from './crypto';
 import { mintEnrollCode } from './enroll';
@@ -9,6 +10,7 @@ import { mintEnrollCode } from './enroll';
 export const apiRoutes = new Hono<AppBindings>();
 
 apiRoutes.use('/api/*', requireUser);
+apiRoutes.use('/api/*', viewerRateLimit);
 
 apiRoutes.get('/api/me', async (c) => {
   const { userId } = c.var.viewer;
