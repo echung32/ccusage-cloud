@@ -144,4 +144,30 @@ export async function run(argv: string[], runner?: Runner): Promise<number> {
 
 // Only run when executed directly (not when imported by tests)
 const isMain = fileURLToPath(import.meta.url) === process.argv[1];
-if (isMain) run(process.argv.slice(2)).then((code) => process.exit(code));
+if (isMain) {
+  // Set exitCode and let the event loop drain instead of calling process.exit().
+  // A synchronous process.exit() right after fetch() aborts on Windows with
+  // "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), src\\win\\async.c"
+  // because libuv is still tearing down undici's keep-alive handle. Idle undici
+  // sockets are unref'd on Node >= 20, so the process still exits promptly.
+  const argv = process.argv.slice(2);
+  run(argv)
+    .then(async (code) => {
+      // Best-effort self-update after a clean sync, only in the real CLI process.
+      // Wrapped so nothing here — not even the dynamic import — can change the
+      // exit code or escape to the outer catch.
+      if (code === 0 && argv[0] === 'sync') {
+        try {
+          const { maybeSelfUpdate } = await import('./selfupdate');
+          await maybeSelfUpdate({ cliPath: process.argv[1]! });
+        } catch {
+          // ignore: self-update must never affect sync's outcome
+        }
+      }
+      process.exitCode = code;
+    })
+    .catch((err) => {
+      console.error(err);
+      process.exitCode = 1;
+    });
+}
