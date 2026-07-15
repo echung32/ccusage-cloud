@@ -150,8 +150,15 @@ if (isMain) {
   // "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), src\\win\\async.c"
   // because libuv is still tearing down undici's keep-alive handle. Idle undici
   // sockets are unref'd on Node >= 20, so the process still exits promptly.
-  run(process.argv.slice(2))
-    .then((code) => {
+  const argv = process.argv.slice(2);
+  run(argv)
+    .then(async (code) => {
+      // Best-effort self-update: only after a clean sync, only in the real
+      // bundled CLI process. Never affects sync's exit code.
+      if (code === 0 && argv[0] === 'sync') {
+        const { maybeSelfUpdate } = await import('./selfupdate');
+        await maybeSelfUpdate({ cliPath: process.argv[1]! }).catch(() => {});
+      }
       process.exitCode = code;
     })
     .catch((err) => {
