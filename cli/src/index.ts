@@ -153,11 +153,16 @@ if (isMain) {
   const argv = process.argv.slice(2);
   run(argv)
     .then(async (code) => {
-      // Best-effort self-update: only after a clean sync, only in the real
-      // bundled CLI process. Never affects sync's exit code.
+      // Best-effort self-update after a clean sync, only in the real CLI process.
+      // Wrapped so nothing here — not even the dynamic import — can change the
+      // exit code or escape to the outer catch.
       if (code === 0 && argv[0] === 'sync') {
-        const { maybeSelfUpdate } = await import('./selfupdate');
-        await maybeSelfUpdate({ cliPath: process.argv[1]! }).catch(() => {});
+        try {
+          const { maybeSelfUpdate } = await import('./selfupdate');
+          await maybeSelfUpdate({ cliPath: process.argv[1]! });
+        } catch {
+          // ignore: self-update must never affect sync's outcome
+        }
       }
       process.exitCode = code;
     })
