@@ -45,6 +45,18 @@ describe('maybeSelfUpdate', () => {
     expect(String(fetchFn.mock.calls[0][0])).toBe('https://api.example.dev/cli.js');
   });
 
+  it('sends a bounded abort signal so a stalled server cannot delay exit', async () => {
+    const ws = workspace();
+    const fetchFn = vi.fn(async () => new Response(NEW, { status: 200, headers: { etag: '"v2"' } }));
+    await maybeSelfUpdate({
+      cliPath: ws.cliPath,
+      configPath: ws.configPath,
+      etagPath: ws.etagPath,
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    expect((fetchFn.mock.calls[0][1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('sends a stored ETag as If-None-Match and no-ops on 304', async () => {
     const ws = workspace();
     saveEtag('"v1"', ws.etagPath);

@@ -43,7 +43,8 @@ export async function maybeSelfUpdate(opts: SelfUpdateOpts): Promise<boolean> {
     const headers: Record<string, string> = {};
     if (stored) headers['if-none-match'] = stored;
 
-    const res = await fetchFn(new URL('/cli.js', cfg.serverUrl), { headers });
+    // Bound the request so a stalled server can't delay exit after sync has already finished.
+    const res = await fetchFn(new URL('/cli.js', cfg.serverUrl), { headers, signal: AbortSignal.timeout(5000) });
     if (res.status === 304) return false;
     if (!res.ok) return false;
 
