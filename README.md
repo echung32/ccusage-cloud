@@ -6,7 +6,7 @@ Key properties:
 
 - **Private by default** — your Worker, your data; nothing goes to a shared service.
 - **Multi-device** — run `ccusage-cloud sync` on each machine; the dashboard shows combined usage.
-- **Opt-in group sharing** — share an overall cost/token total with others; no project names or per-session rows are ever exposed to group members.
+- **Private personal workspace** — explore your own usage, projects, sessions, and devices. No group sharing or cross-account analytics.
 
 ---
 
@@ -184,6 +184,20 @@ Pass `--redact-projects` on `login` to persist the setting, or on any `sync`/`st
 
 The setting is stored in `~/.config/ccusage-cloud/config.json` so scheduled `sync` runs respect it without extra flags.
 
-### Group sharing
+### Personal workspace
 
-Group sharing is **opt-in** (off by default) and exposes only **overall rollups**: totals (tokens / cost), the per-day series, by-source and by-model breakdowns, and a per-person split (labeled by email) across opted-in members. **No project names and no individual session rows** are ever shared with the group — those stay in your own (`scope=me`) view only. Members who do not opt in contribute nothing to the group aggregate.
+All analytics are private to the authenticated account. Group mode and sharing controls have been removed; legacy `scope=group` URLs return only your own data. The old database column remains solely for migration compatibility.
+
+The dashboard uses lightweight native React components, responsive navigation, accessible charts with data tables, sortable/searchable analytics, inclusive UTC date filters, and device management with explicit failure feedback.
+
+### Local preview
+
+Use pnpm through mise:
+
+```sh
+mise exec pnpm@10 -- pnpm install
+mise exec pnpm@10 -- pnpm --filter dashboard build
+mise exec pnpm@10 -- pnpm --filter dashboard preview --host 127.0.0.1 --port 4321
+```
+
+The preview requires the normal backend and authentication to access account data. Archived redesign videos, screenshots, and step-by-step verification logs are linked from [PR #18](https://github.com/echung32/ccusage-cloud/pull/18), pinned to the verification commit. Recording tools and generated artifacts are not included in the final application tree.

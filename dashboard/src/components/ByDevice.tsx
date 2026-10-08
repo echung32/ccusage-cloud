@@ -1,56 +1,66 @@
-import { useEffect, useState, useCallback } from 'react';
-import ContentLayout from '@cloudscape-design/components/content-layout';
-import Header from '@cloudscape-design/components/header';
-import Container from '@cloudscape-design/components/container';
-import SpaceBetween from '@cloudscape-design/components/space-between';
-import PieChart from '@cloudscape-design/components/pie-chart';
-import Table from '@cloudscape-design/components/table';
-import Box from '@cloudscape-design/components/box';
-import { getMe, getSummary } from '@/lib/api';
-import type { Summary, Me, ByDevice as ByDeviceRow } from '@/lib/types';
-import { readFiltersFromUrl, writeFiltersToUrl, type Filters } from '@/lib/filters';
-import { FilterBar } from '@/components/FilterBar';
-import { AppShell } from '@/components/AppShell';
-import { fmtInt, fmtUsd } from '@/lib/format';
+import { AppShell } from "./AppShell";
+import { FilterBar } from "./FilterBar";
+import { CostBars } from "./Charts";
+import { PageHeading, Panel, DataTable, LoadingState, ErrorState } from "./ui";
+import { useAnalytics } from "./useAnalytics";
+import { fmtInt, fmtUsd } from "@/lib/format";
 
 export function ByDevice() {
-  const [filters, setFilters] = useState<Filters>(() => readFiltersFromUrl());
-  const [me, setMe] = useState<Me | null>(null);
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => { getMe().then(setMe).catch(() => setMe(null)); }, []);
-  useEffect(() => { setLoading(true); getSummary(filters).then(setSummary).catch(() => setSummary(null)).finally(() => setLoading(false)); }, [filters]);
-  const onChange = useCallback((f: Filters) => { writeFiltersToUrl(f); setFilters(f); }, []);
-
-  const sources = summary?.bySource.map((s) => s.source) ?? [];
-  const devices = me?.devices.map((d) => ({ id: d.id, label: d.label })) ?? [];
-  const byDevice = summary?.byDevice ?? [];
-  const empty = <Box textAlign="center" color="inherit">No data</Box>;
-
+  const data = useAnalytics();
+  const rows = data.summary?.byDevice ?? [];
   return (
-    <AppShell active="/devices" scope={filters.scope ?? 'me'}>
-      <ContentLayout header={<Header variant="h1">Devices</Header>}>
-        <SpaceBetween size="l">
-          <Container header={<Header variant="h2">Filters</Header>}>
-            <FilterBar filters={filters} sources={sources} devices={devices} onChange={onChange} />
-          </Container>
-          <Container header={<Header variant="h2">Device contribution (by cost)</Header>}>
-            <SpaceBetween size="m">
-              <PieChart data={byDevice.map((d) => ({ title: d.label, value: d.totalCost }))} ariaLabel="Device contribution by cost"
-                size="medium" statusType={loading ? 'loading' : 'finished'} hideFilter empty={empty}
-                detailPopoverContent={(datum, sum) => [{ key: 'Cost', value: fmtUsd(datum.value) }, { key: 'Share', value: `${((datum.value / sum) * 100).toFixed(0)}%` }]} />
-              <Table variant="embedded" items={byDevice} trackBy="deviceId" loading={loading} loadingText="Loading" empty={empty}
-                columnDefinitions={[
-                  { id: 'label', header: 'Device', cell: (d: ByDeviceRow) => d.label },
-                  { id: 'tokens', header: 'Tokens', cell: (d: ByDeviceRow) => fmtInt(d.totalTokens) },
-                  { id: 'cost', header: 'Cost', cell: (d: ByDeviceRow) => fmtUsd(d.totalCost) },
-                  { id: 'sessions', header: 'Sessions', cell: (d: ByDeviceRow) => fmtInt(d.sessions) },
-                ]} />
-            </SpaceBetween>
-          </Container>
-        </SpaceBetween>
-      </ContentLayout>
+    <AppShell active="/devices">
+      <PageHeading
+        title="Every device, one picture."
+        description="Compare activity and spending across the machines you work on."
+        action={
+          <a className="button" href="/settings">
+            Manage devices ↗
+          </a>
+        }
+      />
+      <div className="stack">
+        <Panel className="filter-panel">
+          <FilterBar {...data} />
+        </Panel>
+        {data.error ? (
+          <ErrorState message={data.error} retry={data.retry} />
+        ) : data.loading ? (
+          <LoadingState />
+        ) : (
+          <Panel
+            title="Device contribution"
+            description="Your devices’ share of estimated cost."
+          >
+            <CostBars
+              title="Device contribution by cost"
+              rows={rows.map((d) => ({ label: d.label, value: d.totalCost }))}
+            />
+            <DataTable
+              rows={rows}
+              rowKey={(d) => d.deviceId}
+              columns={[
+                { key: "label", label: "Device", render: (d) => d.label },
+                {
+                  key: "totalTokens",
+                  label: "Tokens",
+                  render: (d) => fmtInt(d.totalTokens),
+                },
+                {
+                  key: "totalCost",
+                  label: "Cost",
+                  render: (d) => fmtUsd(d.totalCost),
+                },
+                {
+                  key: "sessions",
+                  label: "Sessions",
+                  render: (d) => fmtInt(d.sessions),
+                },
+              ]}
+            />
+          </Panel>
+        )}
+      </div>
     </AppShell>
   );
 }

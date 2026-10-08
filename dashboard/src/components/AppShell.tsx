@@ -1,56 +1,76 @@
-import { useState, type ReactNode } from 'react';
-import AppLayout from '@cloudscape-design/components/app-layout';
-import TopNavigation from '@cloudscape-design/components/top-navigation';
-import SideNavigation from '@cloudscape-design/components/side-navigation';
+import type { ReactNode } from "react";
 
 const NAV = [
-  { type: 'link' as const, text: 'Overview', href: '/overview' },
-  { type: 'link' as const, text: 'Sources & Models', href: '/sources' },
-  { type: 'link' as const, text: 'Projects', href: '/projects' },
-  { type: 'link' as const, text: 'Devices', href: '/devices' },
-  { type: 'link' as const, text: 'Sessions', href: '/sessions' },
-  { type: 'link' as const, text: 'Settings', href: '/settings' },
+  { href: "/overview", label: "Overview", icon: "◈" },
+  { href: "/sources", label: "Sources & Models", icon: "▥" },
+  { href: "/projects", label: "Projects", icon: "▧" },
+  { href: "/devices", label: "Devices", icon: "▣" },
+  { href: "/sessions", label: "Sessions", icon: "≋" },
+  { href: "/settings", label: "Settings", icon: "⚙" },
 ];
 
-function scopeHref(target: 'me' | 'group'): string {
-  const p = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  if (target === 'group') p.set('scope', 'group'); else p.delete('scope');
-  const path = typeof window !== 'undefined' ? window.location.pathname : '/overview';
-  const qs = p.toString();
-  return qs ? `${path}?${qs}` : path;
-}
-
-// Preserve the active scope when navigating between pages ('me' is the default, so no param).
-function withScope(href: string, scope: 'me' | 'group'): string {
-  return scope === 'group' ? `${href}?scope=group` : href;
-}
-
-export function AppShell({ active, scope = 'me', children }: { active: string; scope?: 'me' | 'group'; children: ReactNode }) {
-  const [navOpen, setNavOpen] = useState(true);
-  const groupHidden = new Set(['/projects', '/sessions']);
-  const items = (scope === 'group' ? NAV.filter((n) => !groupHidden.has(n.href)) : NAV).map((n) => ({
-    ...n,
-    href: withScope(n.href, scope),
-  }));
+export function AppShell({
+  active,
+  children,
+}: {
+  active: string;
+  children: ReactNode;
+}) {
   return (
-    <>
-      <div id="top-nav">
-        <TopNavigation
-          identity={{ href: withScope('/overview', scope), title: 'ccusage-cloud' }}
-          utilities={[
-            { type: 'button', text: 'Me', href: scopeHref('me') },
-            { type: 'button', text: 'Group', href: scopeHref('group') },
-          ]}
-        />
+    <div className="workspace">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
+      <aside className="sidebar">
+        <a href="/overview" className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            c<span>c</span>
+          </span>
+          <span>
+            ccusage<span className="brand-sub">personal workspace</span>
+          </span>
+        </a>
+        <div className="nav-label">WORKSPACE</div>
+        <nav aria-label="Main navigation">
+          {NAV.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              aria-current={active === item.href ? "page" : undefined}
+            >
+              <span aria-hidden="true">{item.icon}</span>
+              {item.label}
+            </a>
+          ))}
+        </nav>
+        <div className="sidebar-note">
+          <span className="status-dot" />
+          Private by design
+          <p>
+            Your usage. Your devices.
+            <br />
+            One clear picture.
+          </p>
+        </div>
+      </aside>
+      <div className="workspace-body">
+        <header className="topbar">
+          <span>
+            Usage intelligence <span className="topbar-divider">/</span>{" "}
+            <strong>{NAV.find((n) => n.href === active)?.label}</strong>
+          </span>
+          <a href="/settings" className="private-badge">
+            <span className="status-dot" />
+            Personal account
+          </a>
+        </header>
+        <main id="main" tabIndex={-1}>
+          {children}
+        </main>
+        <footer className="workspace-footer">
+          ccusage cloud <span>Built for a clearer view of your AI usage.</span>
+        </footer>
       </div>
-      <AppLayout
-        headerSelector="#top-nav"
-        toolsHide
-        navigationOpen={navOpen}
-        onNavigationChange={({ detail }) => setNavOpen(detail.open)}
-        navigation={<SideNavigation activeHref={withScope(active, scope)} header={{ href: withScope('/overview', scope), text: 'ccusage-cloud' }} items={items} />}
-        content={children}
-      />
-    </>
+    </div>
   );
 }

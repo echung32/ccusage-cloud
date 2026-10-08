@@ -26,7 +26,7 @@ describe('GET /api/me', () => {
     const body = (await res.json()) as { id: string; email: string; publicToGroup: boolean; devices: unknown[] };
     expect(body.id).toBe(userId);
     expect(body.email).toBe(email);
-    expect(body.publicToGroup).toBe(false);
+    expect(body).not.toHaveProperty('publicToGroup');
     expect(Array.isArray(body.devices)).toBe(true);
   });
 });
@@ -81,27 +81,26 @@ describe('device management', () => {
 });
 
 describe('PATCH /api/me', () => {
-  it('toggles group sharing', async () => {
+  it('does not allow enabling removed group sharing', async () => {
     const { userId } = await seedUser(env);
     const on = await asViewer(userId, '/api/me', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ publicToGroup: true }),
     });
-    expect(on.status).toBe(200);
-    expect(await on.json()).toEqual({ publicToGroup: true });
+    expect(on.status).toBe(404);
     const row = await env.DB.prepare('SELECT public_to_group FROM users WHERE id = ?').bind(userId).first<{ public_to_group: number }>();
-    expect(row?.public_to_group).toBe(1);
+    expect(row?.public_to_group).toBe(0);
   });
 
-  it('rejects a non-boolean', async () => {
+  it('has no profile-sharing mutation route', async () => {
     const { userId } = await seedUser(env);
     const res = await asViewer(userId, '/api/me', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ publicToGroup: 'yes' }),
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 });
 

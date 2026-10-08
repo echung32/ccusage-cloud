@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getMe, getSummary, getSessions, createDevice, deleteDevice, patchMe, logout, renameDevice } from '../api';
+import { getMe, getSummary, getSessions, createDevice, deleteDevice, logout, renameDevice } from '../api';
 
 function mockFetch(body: unknown, status = 200) {
   return vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
@@ -48,13 +48,6 @@ describe('api client', () => {
     expect(f).toHaveBeenCalledWith('/api/devices/dev1', expect.objectContaining({ method: 'DELETE' }));
   });
 
-  it('patchMe PATCHes publicToGroup', async () => {
-    const f = mockFetch({ publicToGroup: true });
-    vi.stubGlobal('fetch', f);
-    const r = await patchMe(true);
-    expect(r.publicToGroup).toBe(true);
-  });
-
   it('logout POSTs to the gateway /logout with credentials', async () => {
     const f = mockFetch({});
     vi.stubGlobal('fetch', f);
@@ -83,10 +76,5 @@ describe('api client', () => {
     );
   });
 
-  it('getSummary serializes scope=group', async () => {
-    const f = mockFetch({ totals: { sessions: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalCost: 0 }, byDay: [], bySource: [], byModel: [], byProject: [], byDevice: [] });
-    vi.stubGlobal('fetch', f);
-    await getSummary({ scope: 'group' });
-    expect(f.mock.calls[0][0]).toContain('scope=group');
-  });
+
 });
