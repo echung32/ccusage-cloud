@@ -4,10 +4,9 @@ This runbook is **owner-run** and touches the live Cloudflare account + DNS.
 Each step is intentionally manual — no CI pipeline executes these commands.
 Run them in order the first time you deploy to `ethanchung.dev`.
 
-> **Note on placeholders in `wrangler.jsonc`:** The file intentionally contains
-> `*-local-placeholder` values for the D1 and KV resource IDs. Real IDs are never
-> committed. After each `wrangler` command below you will paste the real ID
-> back into `wrangler.jsonc` locally.
+> **Note on resource IDs:** `worker/wrangler.jsonc` contains the configured D1
+> and KV resource IDs. Reuse existing resources for subsequent deployments;
+> only create new resources and replace their IDs when provisioning a new environment.
 
 ---
 
@@ -16,6 +15,10 @@ Run them in order the first time you deploy to `ethanchung.dev`.
 - `wrangler` authenticated: `wrangler login`
 - `pnpm` installed (matches the version in `package.json`)
 - DNS for `ethanchung.dev` managed via Cloudflare (zone must exist in your account)
+- The shared auth gateway at `https://auth.ethanchung.dev` is operational and
+  permits the intended users and dashboard redirect URL. Viewer login uses this
+  gateway, not email magic links. The Worker verification configuration is in
+  `worker/src/auth_config.ts` (JWKS URL, issuer, and `fleet` audience).
 
 ---
 
@@ -25,7 +28,7 @@ Run them in order the first time you deploy to `ethanchung.dev`.
 wrangler d1 create ccusage-cloud
 ```
 
-Copy the `database_id` from the output and replace `"local-dev-placeholder"` in
+Copy the `database_id` from the output and update the ID in
 `worker/wrangler.jsonc` under `d1_databases`:
 
 ```jsonc
@@ -41,23 +44,19 @@ Copy the `database_id` from the output and replace `"local-dev-placeholder"` in
 
 ---
 
-## Step 2 — Create KV namespaces
+## Step 2 — Create the rate-limit KV namespace
 
-Run each command separately and paste the returned `id` into `worker/wrangler.jsonc`:
+Run the command and paste the returned `id` into `worker/wrangler.jsonc`:
 
 ```sh
-wrangler kv namespace create LOGIN_TOKENS
-wrangler kv namespace create VIEWER_SESSIONS
 wrangler kv namespace create RATE_LIMITS
 ```
 
-Replace the three `*-local-placeholder` values in `kv_namespaces`:
+Update `kv_namespaces`:
 
 ```jsonc
 "kv_namespaces": [
-  { "binding": "LOGIN_TOKENS",    "id": "<login-tokens-real-id>" },
-  { "binding": "VIEWER_SESSIONS", "id": "<viewer-sessions-real-id>" },
-  { "binding": "RATE_LIMITS",     "id": "<rate-limits-real-id>" }
+  { "binding": "RATE_LIMITS", "id": "<rate-limits-real-id>" }
 ]
 ```
 
@@ -75,7 +74,7 @@ serves as the static frontend. `build:bundle` first emits
 `dashboard/public/cli.js`, which `astro build` folds into `dashboard/dist` so the
 Worker also serves it at `/cli.js`; if you build the dashboard without running
 `build:bundle` first, `/cli.js` won't be served. (The actual deploy happens in
-Step 8.)
+Step 6.)
 
 ---
 
@@ -90,67 +89,9 @@ database in the order they are numbered.
 
 ---
 
-## Step 5 — Seed the allow-list
+## Step 5 — Enable the custom domain
 
-Insert each email address that should be allowed to sign in. Repeat for every
-invited user:
-
-```sh
-wrangler d1 execute ccusage-cloud --remote --command \
-  "INSERT INTO allowed_emails (email, added_at) VALUES ('you@example.com', unixepoch()*1000)"
-```
-
-- `added_at` is stored as a millisecond-epoch INTEGER (matches the schema in
-  `worker/migrations/0001_init.sql`).
-- Run the command once per email address; substituting `you@example.com` each
-  time.
-
----
-
-## Step 6 — Configure email sending
-
-Enable email sending for the domain:
-
-```sh
-wrangler email sending enable ethanchung.dev
-```
-
-After running this command, Cloudflare will display the DNS records you must add
-to the `ethanchung.dev` zone. Add all three record types:
-
-**SPF** — authorizes Cloudflare to send on behalf of your domain:
-
-```
-Type: TXT
-Name: @  (or ethanchung.dev)
-Value: v=spf1 include:_spf.mx.cloudflare.net ~all
-```
-
-**DKIM** — cryptographic sender signature. Cloudflare generates the key pair;
-copy the TXT record name and value from the `wrangler email sending enable`
-output and add it to DNS.
-
-**DMARC** — policy for unauthenticated mail (start with `p=none` while
-monitoring, tighten to `p=quarantine` or `p=reject` once delivery is confirmed):
-
-```
-Type: TXT
-Name: _dmarc
-Value: v=DMARC1; p=none; rua=mailto:dmarc@ethanchung.dev
-```
-
-The sender used by the Worker is `noreply@ethanchung.dev`. Verify the `send_email`
-binding in `worker/wrangler.jsonc` is present (`"name": "EMAIL"`) — it already
-is by default.
-
-> Allow 15–30 minutes for DNS propagation before testing email delivery.
-
----
-
-## Step 7 — Enable the custom domain
-
-Uncomment the `routes` template in `worker/wrangler.jsonc` (see the comment
-block immediately after the `assets` section) and set your desired pattern:
+Add a `routes` entry in `worker/wrangler.jsonc` and set your desired pattern:
 
 ```jsonc
 "routes": [{ "pattern": "ccusage.ethanchung.dev", "custom_domain": true }],
@@ -170,21 +111,24 @@ on first deploy.
 
 ---
 
-## Step 8 — Deploy
+## Step 6 — Deploy
 
 ```sh
 wrangler deploy
 ```
 
 This bundles `worker/src/index.ts`, uploads the built `dashboard/dist` assets,
-and publishes the Worker to the custom domain configured in Step 7.
+and publishes the Worker to the custom domain configured in Step 5.
 
 ---
 
-## Step 9 — End-to-end verification
+## Step 7 — End-to-end verification
 
-1. **Mint a device token** — open `https://ccusage.ethanchung.dev` (or your
-   chosen domain) → Settings → create a new device token. Copy the token value.
+1. **Sign in and mint a device token** — open `https://ccusage.ethanchung.dev`
+   (or your chosen domain), sign in through the auth gateway, then go to
+   Settings → create a new device token. Copy the token value.
+   The Worker automatically provisions the user record on first authenticated
+   access; no local email allowlist or email-sending setup is required.
 
 2. **Log in from a device:**
 
@@ -208,8 +152,8 @@ and publishes the Worker to the custom domain configured in Step 7.
   ```sh
   curl https://ccusage.ethanchung.dev/health
   ```
-- [ ] Login email arrives in the inbox for an allowed email address (magic-link
-  flow) within a few minutes of requesting it.
+- [ ] An unauthenticated dashboard visit redirects to `auth.ethanchung.dev`;
+  after signing in as an authorized user, the dashboard loads successfully.
 - [ ] After `ccusage-cloud sync`, the dashboard at
   `https://ccusage.ethanchung.dev` shows at least one session row.
 
@@ -225,5 +169,6 @@ pnpm --filter dashboard build
 wrangler deploy
 ```
 
-No need to re-run Steps 1–6 unless you are provisioning a new Cloudflare
-account or replacing a resource.
+No need to re-run resource provisioning (Steps 1–2) unless you are provisioning
+a new Cloudflare account or replacing a resource. Apply Step 4 whenever new
+migrations are added; repeat Step 5 only when changing the custom domain.
