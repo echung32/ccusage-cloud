@@ -1,7 +1,7 @@
-import { createMiddleware } from 'hono/factory';
-import { requireUser as verifyUser } from 'auth-verify';
-import type { AppBindings } from './env';
-import { AUTH } from './auth_config';
+import { createMiddleware } from "hono/factory";
+import { requireUser as verifyUser } from "auth-verify";
+import type { AppBindings } from "./env";
+import { AUTH } from "./auth_config";
 
 interface VerifiedUser {
   sub: string;
@@ -16,16 +16,16 @@ export const requireUser = createMiddleware<AppBindings>(async (c, next) => {
     u = (await verifyUser(c.req.raw, AUTH)) as VerifiedUser;
   } catch (e) {
     if (e instanceof Response) return e; // auth-verify throws a 401 Response
-    return c.json({ error: 'auth unavailable' }, 503); // e.g. JWKS fetch failure
+    return c.json({ error: "auth unavailable" }, 503); // e.g. JWKS fetch failure
   }
-  if (!u.sub || u.sub === 'undefined') {
-    return c.json({ error: 'invalid token' }, 401);
+  if (!u.sub || u.sub === "undefined") {
+    return c.json({ error: "invalid token" }, 401);
   }
   await c.env.DB.prepare(
-    'INSERT INTO users (id, email, name, public_to_group, created_at) VALUES (?, ?, ?, 0, ?) ON CONFLICT(id) DO NOTHING',
+    "INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO NOTHING",
   )
     .bind(u.sub, u.email, u.name, Date.now())
     .run();
-  c.set('viewer', { userId: u.sub });
+  c.set("viewer", { userId: u.sub });
   await next();
 });

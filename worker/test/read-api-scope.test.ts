@@ -11,7 +11,7 @@ async function asViewer(userId: string, path: string) {
 }
 
 describe('GET /api/summary?scope=group', () => {
-  it('returns overall-only group aggregate (no project), excludes opted-out', async () => {
+  it('legacy group scope returns only the viewer, including their projects', async () => {
     const { userId: a } = await seedUser(env);
     await env.DB.prepare('UPDATE users SET public_to_group = 1 WHERE id = ?').bind(a).run();
     const { deviceId: da } = await seedDevice(env, `ga-${a}@example.com`);
@@ -23,8 +23,8 @@ describe('GET /api/summary?scope=group', () => {
     const res = await asViewer(b, '/api/summary?scope=group');
     expect(res.status).toBe(200);
     const body = (await res.json()) as { totals: { totalTokens: number }; byProject: unknown[] };
-    expect(body.totals.totalTokens).toBe(100);
-    expect(body.byProject).toEqual([]);
+    expect(body.totals.totalTokens).toBe(9999);
+    expect(body.byProject).not.toContainEqual(expect.objectContaining({ projectPath: '/secret' }));
   });
 
   it('scope=me (default) is unchanged and never leaks others', async () => {

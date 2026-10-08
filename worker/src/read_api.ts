@@ -1,14 +1,19 @@
-import { Hono } from 'hono';
-import * as v from 'valibot';
-import type { AppBindings } from './env';
-import { requireUser } from './viewer';
-import { viewerRateLimit } from './viewer_ratelimit';
-import { summaryQuery, sessionsPage, groupSummaryQuery, clampLimit, type SummaryFilters } from './queries';
+import { Hono } from "hono";
+import * as v from "valibot";
+import type { AppBindings } from "./env";
+import { requireUser } from "./viewer";
+import { viewerRateLimit } from "./viewer_ratelimit";
+import {
+  summaryQuery,
+  sessionsPage,
+  clampLimit,
+  type SummaryFilters,
+} from "./queries";
 
 export const readApiRoutes = new Hono<AppBindings>();
 
-readApiRoutes.use('/api/*', requireUser);
-readApiRoutes.use('/api/*', viewerRateLimit);
+readApiRoutes.use("/api/*", requireUser);
+readApiRoutes.use("/api/*", viewerRateLimit);
 
 const FiltersSchema = v.object({
   from: v.optional(v.string()),
@@ -17,11 +22,9 @@ const FiltersSchema = v.object({
   device: v.optional(v.string()),
 });
 
-function parseScope(c: { req: { query: () => Record<string, string> } }): 'me' | 'group' {
-  return c.req.query().scope === 'group' ? 'group' : 'me';
-}
-
-function parseFilters(c: { req: { query: () => Record<string, string> } }): SummaryFilters {
+function parseFilters(c: {
+  req: { query: () => Record<string, string> };
+}): SummaryFilters {
   const raw = c.req.query();
   const parsed = v.safeParse(FiltersSchema, {
     from: raw.from || undefined,
@@ -32,16 +35,13 @@ function parseFilters(c: { req: { query: () => Record<string, string> } }): Summ
   return parsed.success ? parsed.output : {};
 }
 
-readApiRoutes.get('/api/summary', async (c) => {
+readApiRoutes.get("/api/summary", async (c) => {
   const filters = parseFilters(c);
-  const scope = parseScope(c);
-  const summary = scope === 'group'
-    ? await groupSummaryQuery(c.env.DB, filters)
-    : await summaryQuery(c.env.DB, c.var.viewer.userId, filters);
+  const summary = await summaryQuery(c.env.DB, c.var.viewer.userId, filters);
   return c.json(summary);
 });
 
-readApiRoutes.get('/api/sessions', async (c) => {
+readApiRoutes.get("/api/sessions", async (c) => {
   const { userId } = c.var.viewer;
   const filters = parseFilters(c);
   const raw = c.req.query();

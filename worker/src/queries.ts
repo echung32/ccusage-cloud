@@ -15,12 +15,41 @@ export interface SummaryTotals {
   totalCost: number;
 }
 
-export interface ByDay { day: string; totalTokens: number; totalCost: number }
-export interface ByDaySource { day: string; source: string; totalTokens: number; totalCost: number }
-export interface BySource { source: string; totalTokens: number; totalCost: number; sessions: number }
-export interface ByModel { model: string; totalTokens: number; totalCost: number }
-export interface ByProject { projectPath: string; totalTokens: number; totalCost: number; sessions: number }
-export interface ByDevice { deviceId: string; label: string; totalTokens: number; totalCost: number; sessions: number }
+export interface ByDay {
+  day: string;
+  totalTokens: number;
+  totalCost: number;
+}
+export interface ByDaySource {
+  day: string;
+  source: string;
+  totalTokens: number;
+  totalCost: number;
+}
+export interface BySource {
+  source: string;
+  totalTokens: number;
+  totalCost: number;
+  sessions: number;
+}
+export interface ByModel {
+  model: string;
+  totalTokens: number;
+  totalCost: number;
+}
+export interface ByProject {
+  projectPath: string;
+  totalTokens: number;
+  totalCost: number;
+  sessions: number;
+}
+export interface ByDevice {
+  deviceId: string;
+  label: string;
+  totalTokens: number;
+  totalCost: number;
+  sessions: number;
+}
 
 export interface Summary {
   totals: SummaryTotals;
@@ -32,19 +61,37 @@ export interface Summary {
   byDevice: ByDevice[];
 }
 
-interface WhereClause { sql: string; binds: (string)[] }
-
-function buildWhere(userId: string, f: SummaryFilters): WhereClause {
-  const parts = ['s.user_id = ?'];
-  const binds: string[] = [userId];
-  if (f.from) { parts.push('s.last_activity >= ?'); binds.push(f.from); }
-  if (f.to) { parts.push('s.last_activity <= ?'); binds.push(f.to); }
-  if (f.source) { parts.push('s.source = ?'); binds.push(f.source); }
-  if (f.device) { parts.push('s.device_id = ?'); binds.push(f.device); }
-  return { sql: parts.join(' AND '), binds };
+interface WhereClause {
+  sql: string;
+  binds: string[];
 }
 
-async function runTotals(db: D1Database, w: WhereClause): Promise<SummaryTotals> {
+function buildWhere(userId: string, f: SummaryFilters): WhereClause {
+  const parts = ["s.user_id = ?"];
+  const binds: string[] = [userId];
+  if (f.from) {
+    parts.push("s.last_activity >= ?");
+    binds.push(f.from);
+  }
+  if (f.to) {
+    parts.push("s.last_activity <= ?");
+    binds.push(f.to);
+  }
+  if (f.source) {
+    parts.push("s.source = ?");
+    binds.push(f.source);
+  }
+  if (f.device) {
+    parts.push("s.device_id = ?");
+    binds.push(f.device);
+  }
+  return { sql: parts.join(" AND "), binds };
+}
+
+async function runTotals(
+  db: D1Database,
+  w: WhereClause,
+): Promise<SummaryTotals> {
   const row = await db
     .prepare(
       `SELECT COUNT(*) AS sessions,
@@ -58,45 +105,78 @@ async function runTotals(db: D1Database, w: WhereClause): Promise<SummaryTotals>
     )
     .bind(...w.binds)
     .first<SummaryTotals>();
-  return row ?? { sessions: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalCost: 0 };
+  return (
+    row ?? {
+      sessions: 0,
+      totalTokens: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheCreationTokens: 0,
+      cacheReadTokens: 0,
+      totalCost: 0,
+    }
+  );
 }
 
 async function runByDay(db: D1Database, w: WhereClause): Promise<ByDay[]> {
-  return (await db.prepare(
-    `SELECT ud.day AS day,
+  return (
+    await db
+      .prepare(
+        `SELECT ud.day AS day,
             COALESCE(SUM(ud.total_tokens),0) AS totalTokens,
             COALESCE(SUM(ud.total_cost),0) AS totalCost
      FROM usage_daily ud WHERE ${w.sql}
      GROUP BY ud.day ORDER BY ud.day`,
-  ).bind(...w.binds).all<ByDay>()).results;
+      )
+      .bind(...w.binds)
+      .all<ByDay>()
+  ).results;
 }
 
-async function runByDaySource(db: D1Database, w: WhereClause): Promise<ByDaySource[]> {
-  return (await db.prepare(
-    `SELECT ud.day AS day,
+async function runByDaySource(
+  db: D1Database,
+  w: WhereClause,
+): Promise<ByDaySource[]> {
+  return (
+    await db
+      .prepare(
+        `SELECT ud.day AS day,
             ud.source AS source,
             COALESCE(SUM(ud.total_tokens),0) AS totalTokens,
             COALESCE(SUM(ud.total_cost),0) AS totalCost
      FROM usage_daily ud WHERE ${w.sql}
      GROUP BY ud.day, ud.source ORDER BY ud.day, ud.source`,
-  ).bind(...w.binds).all<ByDaySource>()).results;
+      )
+      .bind(...w.binds)
+      .all<ByDaySource>()
+  ).results;
 }
 
-async function runBySource(db: D1Database, w: WhereClause): Promise<BySource[]> {
-  return (await db.prepare(
-    `SELECT s.source AS source,
+async function runBySource(
+  db: D1Database,
+  w: WhereClause,
+): Promise<BySource[]> {
+  return (
+    await db
+      .prepare(
+        `SELECT s.source AS source,
             COALESCE(SUM(s.total_tokens),0) AS totalTokens,
             COALESCE(SUM(s.total_cost),0) AS totalCost,
             COUNT(*) AS sessions
      FROM sessions s WHERE ${w.sql}
      GROUP BY s.source ORDER BY totalCost DESC`,
-  ).bind(...w.binds).all<BySource>()).results;
+      )
+      .bind(...w.binds)
+      .all<BySource>()
+  ).results;
 }
 
 // byModel: json_each over model_breakdowns; keys verified per Task A2.
 async function runByModel(db: D1Database, w: WhereClause): Promise<ByModel[]> {
-  return (await db.prepare(
-    `SELECT json_extract(je.value, '$.modelName') AS model,
+  return (
+    await db
+      .prepare(
+        `SELECT json_extract(je.value, '$.modelName') AS model,
             COALESCE(SUM(
               COALESCE(json_extract(je.value, '$.inputTokens'),0) +
               COALESCE(json_extract(je.value, '$.outputTokens'),0) +
@@ -110,10 +190,17 @@ async function runByModel(db: D1Database, w: WhereClause): Promise<ByModel[]> {
        AND json_valid(s.model_breakdowns)
        AND json_extract(je.value, '$.modelName') IS NOT NULL
      GROUP BY model ORDER BY totalCost DESC`,
-  ).bind(...w.binds).all<ByModel>()).results;
+      )
+      .bind(...w.binds)
+      .all<ByModel>()
+  ).results;
 }
 
-export async function summaryQuery(db: D1Database, userId: string, filters: SummaryFilters): Promise<Summary> {
+export async function summaryQuery(
+  db: D1Database,
+  userId: string,
+  filters: SummaryFilters,
+): Promise<Summary> {
   const w = buildWhere(userId, filters);
   const wd = buildDailyWhere(userId, filters);
 
@@ -159,58 +246,25 @@ export async function summaryQuery(db: D1Database, userId: string, filters: Summ
 }
 
 function buildDailyWhere(userId: string, f: SummaryFilters): WhereClause {
-  const parts = ['ud.user_id = ?'];
+  const parts = ["ud.user_id = ?"];
   const binds: string[] = [userId];
-  if (f.from) { parts.push('ud.day >= substr(?,1,10)'); binds.push(f.from); }
-  if (f.to) { parts.push('ud.day <= substr(?,1,10)'); binds.push(f.to); }
-  if (f.source) { parts.push('ud.source = ?'); binds.push(f.source); }
-  if (f.device) { parts.push('ud.device_id = ?'); binds.push(f.device); }
-  return { sql: parts.join(' AND '), binds };
-}
-
-function buildGroupDailyWhere(f: SummaryFilters): WhereClause {
-  const parts = ['ud.user_id IN (SELECT id FROM users WHERE public_to_group = 1)'];
-  const binds: string[] = [];
-  if (f.from) { parts.push('ud.day >= substr(?,1,10)'); binds.push(f.from); }
-  if (f.to) { parts.push('ud.day <= substr(?,1,10)'); binds.push(f.to); }
-  if (f.source) { parts.push('ud.source = ?'); binds.push(f.source); }
-  // device filter intentionally ignored in group scope (device ids are per-user).
-  return { sql: parts.join(' AND '), binds };
-}
-
-function buildGroupWhere(f: SummaryFilters): WhereClause {
-  const parts = ['s.user_id IN (SELECT id FROM users WHERE public_to_group = 1)'];
-  const binds: string[] = [];
-  if (f.from) { parts.push('s.last_activity >= ?'); binds.push(f.from); }
-  if (f.to) { parts.push('s.last_activity <= ?'); binds.push(f.to); }
-  if (f.source) { parts.push('s.source = ?'); binds.push(f.source); }
-  // device filter is intentionally ignored in group scope (device ids are per-user).
-  return { sql: parts.join(' AND '), binds };
-}
-
-export async function groupSummaryQuery(db: D1Database, filters: SummaryFilters): Promise<Summary> {
-  const w = buildGroupWhere(filters);
-  const wd = buildGroupDailyWhere(filters);
-  const [totals, byDay, byDaySource, bySource, byModel] = await Promise.all([
-    runTotals(db, w), runByDay(db, wd), runByDaySource(db, wd), runBySource(db, w), runByModel(db, w),
-  ]);
-  // per-person contribution (overall-only; reuses the ByDevice shape, label = email)
-  const pwParts = ['u.public_to_group = 1'];
-  const pwBinds: string[] = [];
-  if (filters.from) { pwParts.push('s.last_activity >= ?'); pwBinds.push(filters.from); }
-  if (filters.to) { pwParts.push('s.last_activity <= ?'); pwBinds.push(filters.to); }
-  if (filters.source) { pwParts.push('s.source = ?'); pwBinds.push(filters.source); }
-  // device filter is intentionally ignored in group scope (device ids are per-user).
-  const byPerson = (await db.prepare(
-    `SELECT u.id AS deviceId, u.email AS label,
-            COALESCE(SUM(s.total_tokens),0) AS totalTokens,
-            COALESCE(SUM(s.total_cost),0) AS totalCost,
-            COUNT(*) AS sessions
-     FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE ${pwParts.join(' AND ')}
-     GROUP BY u.id, u.email ORDER BY totalCost DESC`,
-  ).bind(...pwBinds).all<ByDevice>()).results;
-  return { totals, byDay, byDaySource, bySource, byModel, byProject: [], byDevice: byPerson };
+  if (f.from) {
+    parts.push("ud.day >= substr(?,1,10)");
+    binds.push(f.from);
+  }
+  if (f.to) {
+    parts.push("ud.day <= substr(?,1,10)");
+    binds.push(f.to);
+  }
+  if (f.source) {
+    parts.push("ud.source = ?");
+    binds.push(f.source);
+  }
+  if (f.device) {
+    parts.push("ud.device_id = ?");
+    binds.push(f.device);
+  }
+  return { sql: parts.join(" AND "), binds };
 }
 
 export interface SessionRow {
@@ -230,17 +284,44 @@ export interface SessionsPage {
   nextCursor: string | null;
 }
 
-export function encodeCursor(row: { lastActivity: string | null; source: string; sessionId: string; deviceId: string; projectPath: string | null }): string {
-  const payload = JSON.stringify([row.lastActivity ?? '', row.source, row.sessionId, row.deviceId, row.projectPath ?? '']);
+export function encodeCursor(row: {
+  lastActivity: string | null;
+  source: string;
+  sessionId: string;
+  deviceId: string;
+  projectPath: string | null;
+}): string {
+  const payload = JSON.stringify([
+    row.lastActivity ?? "",
+    row.source,
+    row.sessionId,
+    row.deviceId,
+    row.projectPath ?? "",
+  ]);
   return btoa(payload);
 }
 
-export function decodeCursor(cursor: string): { lastActivity: string; source: string; sessionId: string; deviceId: string; projectPath: string } | null {
+export function decodeCursor(
+  cursor: string,
+): {
+  lastActivity: string;
+  source: string;
+  sessionId: string;
+  deviceId: string;
+  projectPath: string;
+} | null {
   try {
     const arr = JSON.parse(atob(cursor)) as unknown;
     if (!Array.isArray(arr) || arr.length !== 5) return null;
     const [lastActivity, source, sessionId, deviceId, projectPath] = arr;
-    if (typeof lastActivity !== 'string' || typeof source !== 'string' || typeof sessionId !== 'string' || typeof deviceId !== 'string' || typeof projectPath !== 'string') return null;
+    if (
+      typeof lastActivity !== "string" ||
+      typeof source !== "string" ||
+      typeof sessionId !== "string" ||
+      typeof deviceId !== "string" ||
+      typeof projectPath !== "string"
+    )
+      return null;
     return { lastActivity, source, sessionId, deviceId, projectPath };
   } catch {
     return null;
@@ -268,7 +349,9 @@ function parseModels(json: string | null): string[] {
   if (!json) return [];
   try {
     const v = JSON.parse(json) as unknown;
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+    return Array.isArray(v)
+      ? v.filter((x): x is string => typeof x === "string")
+      : [];
   } catch {
     return [];
   }
@@ -289,9 +372,25 @@ export async function sessionsPage(
     if (c) {
       // (last_activity, source, session_id, device_id, project_path) strictly less than the cursor (descending).
       parts.push(
-        '(COALESCE(s.last_activity, \'\') < ? OR (COALESCE(s.last_activity, \'\') = ? AND s.source < ?) OR (COALESCE(s.last_activity, \'\') = ? AND s.source = ? AND s.session_id < ?) OR (COALESCE(s.last_activity, \'\') = ? AND s.source = ? AND s.session_id = ? AND s.device_id < ?) OR (COALESCE(s.last_activity, \'\') = ? AND s.source = ? AND s.session_id = ? AND s.device_id = ? AND s.project_path < ?))',
+        "(COALESCE(s.last_activity, '') < ? OR (COALESCE(s.last_activity, '') = ? AND s.source < ?) OR (COALESCE(s.last_activity, '') = ? AND s.source = ? AND s.session_id < ?) OR (COALESCE(s.last_activity, '') = ? AND s.source = ? AND s.session_id = ? AND s.device_id < ?) OR (COALESCE(s.last_activity, '') = ? AND s.source = ? AND s.session_id = ? AND s.device_id = ? AND s.project_path < ?))",
       );
-      binds.push(c.lastActivity, c.lastActivity, c.source, c.lastActivity, c.source, c.sessionId, c.lastActivity, c.source, c.sessionId, c.deviceId, c.lastActivity, c.source, c.sessionId, c.deviceId, c.projectPath);
+      binds.push(
+        c.lastActivity,
+        c.lastActivity,
+        c.source,
+        c.lastActivity,
+        c.source,
+        c.sessionId,
+        c.lastActivity,
+        c.source,
+        c.sessionId,
+        c.deviceId,
+        c.lastActivity,
+        c.source,
+        c.sessionId,
+        c.deviceId,
+        c.projectPath,
+      );
     }
   }
   const rows = (
@@ -300,7 +399,7 @@ export async function sessionsPage(
         `SELECT s.source, s.session_id, s.device_id, s.total_tokens, s.total_cost,
                 s.first_activity, s.last_activity, s.models_used, s.project_path
          FROM sessions s
-         WHERE ${parts.join(' AND ')}
+         WHERE ${parts.join(" AND ")}
          ORDER BY COALESCE(s.last_activity, '') DESC, s.source DESC, s.session_id DESC, s.device_id DESC, s.project_path DESC
          LIMIT ?`,
       )
@@ -322,6 +421,15 @@ export async function sessionsPage(
     projectPath: r.project_path,
   }));
   const last = page[page.length - 1];
-  const nextCursor = hasMore && last ? encodeCursor({ lastActivity: last.last_activity, source: last.source, sessionId: last.session_id, deviceId: last.device_id, projectPath: last.project_path }) : null;
+  const nextCursor =
+    hasMore && last
+      ? encodeCursor({
+          lastActivity: last.last_activity,
+          source: last.source,
+          sessionId: last.session_id,
+          deviceId: last.device_id,
+          projectPath: last.project_path,
+        })
+      : null;
   return { sessions, nextCursor };
 }

@@ -1,38 +1,78 @@
-import { useEffect, useState } from 'react';
-import Container from '@cloudscape-design/components/container';
-import Header from '@cloudscape-design/components/header';
-import Box from '@cloudscape-design/components/box';
-import { getMe } from '@/lib/api';
-
-type State = 'checking' | 'denied';
-
+import { useEffect, useState } from "react";
+import { getMe } from "@/lib/api";
 export function LoginGate() {
-  const [state, setState] = useState<State>('checking');
-
-  useEffect(() => {
-    getMe()
-      .then(() => { window.location.href = '/overview'; })
-      // On 401 the api client has already redirected to the gateway. If we got
-      // here it's a non-redirecting failure or the returned=1 guard fired →
-      // show the terminal not-authorized state.
-      .catch(() => {
-        const returned = new URL(window.location.href).searchParams.get('returned') === '1';
-        if (returned) setState('denied');
-      });
-  }, []);
-
-  const Centered = ({ children }: { children: React.ReactNode }) => (
-    <Box margin={{ top: 'xxxl' }}><div style={{ maxWidth: 420, margin: '0 auto' }}>{children}</div></Box>
+  const [state, setState] = useState<"checking" | "denied" | "error">(
+    "checking",
   );
-
-  if (state === 'denied') {
-    return (
-      <Centered>
-        <Container header={<Header variant="h2">Not authorized</Header>}>
-          <Box>Your account isn't permitted to access this app. Contact the owner if you think this is a mistake.</Box>
-        </Container>
-      </Centered>
-    );
-  }
-  return <Centered><Box color="text-status-inactive">Redirecting to sign in…</Box></Centered>;
+  useEffect(() => {
+    let current = true;
+    getMe()
+      .then(() => {
+        if (current) window.location.href = "/overview";
+      })
+      .catch((error) => {
+        if (!current) return;
+        const returned =
+          new URL(window.location.href).searchParams.get("returned") === "1";
+        if (returned) setState("denied");
+        else if (error.message !== "unauthenticated") setState("error");
+      });
+    return () => {
+      current = false;
+    };
+  }, []);
+  return (
+    <div className="login-page">
+      <section className="login-story">
+        <a className="brand" href="/">
+          <span className="brand-mark">cc</span>
+          <span>
+            ccusage<span className="brand-sub">personal workspace</span>
+          </span>
+        </a>
+        <h1>
+          Your AI usage.
+          <br />A clearer picture.
+        </h1>
+        <p>
+          Bring your tools, projects, and devices together in one private
+          workspace. Understand where your tokens go and what your work costs.
+        </p>
+      </section>
+      <main className="login-content">
+        <div className="login-card">
+          <p className="eyebrow">WELCOME TO YOUR WORKSPACE</p>
+          {state === "denied" ? (
+            <>
+              <h2>Not authorized</h2>
+              <p>
+                Your account isn't permitted to access this app. Contact the
+                owner if you think this is a mistake.
+              </p>
+            </>
+          ) : state === "error" ? (
+            <>
+              <h2>Unable to connect</h2>
+              <p>We couldn't check your account. Please try again.</p>
+              <button
+                className="button button-primary"
+                onClick={() => window.location.reload()}
+              >
+                Try again
+              </button>
+            </>
+          ) : (
+            <>
+              <h2>Let’s get you signed in.</h2>
+              <p role="status">
+                <span className="loading-dot" />
+                Redirecting to sign in…
+              </p>
+              <p>Secure sign-in. Personal insights. No shared usage.</p>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  );
 }
