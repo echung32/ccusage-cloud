@@ -190,7 +190,7 @@ All analytics are private to the authenticated account. Group mode and sharing c
 
 The dashboard uses lightweight native React components, responsive navigation, accessible charts with data tables, sortable/searchable analytics, inclusive UTC date filters, and device management with explicit failure feedback.
 
-### Local visual verification
+### Local preview
 
 Use pnpm through mise:
 
@@ -200,6 +200,4 @@ mise exec pnpm@10 -- pnpm --filter dashboard build
 mise exec pnpm@10 -- pnpm --filter dashboard preview --host 127.0.0.1 --port 4321
 ```
 
-For a populated, **synthetic-data-only** local review, run `mise exec pnpm@10 -- pnpm --filter dashboard demo` in another terminal and open <http://127.0.0.1:4322>. This separate loopback-only verification server proxies dashboard assets and implements test fixtures; it is not production authentication or a real backend.
-
-Run `mise exec pnpm@10 -- pnpm --filter dashboard verify:video` to produce separated walkthrough recordings, screenshots, and a step-by-step report in `docs/verification/personal-workspace/`. Both local servers must be running. Playwright Chromium and ffmpeg are required; install the browser with `mise exec pnpm@10 -- pnpm --filter dashboard exec playwright install chromium`.
+The preview requires the normal backend and authentication to access account data. Archived redesign videos, screenshots, and step-by-step verification logs are linked from [PR #18](https://github.com/echung32/ccusage-cloud/pull/18), pinned to the verification commit. Recording tools and generated artifacts are not included in the final application tree.

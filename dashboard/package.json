@@ -8,9 +8,7 @@
     "preview": "astro preview",
     "test": "vitest run",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "check": "astro check",
-    "demo": "node verification/server.mjs",
-    "verify:video": "node verification/record.mjs"
+    "check": "astro check"
   },
   "dependencies": {
     "@astrojs/react": "^4.0.0",
@@ -19,7 +17,6 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.0",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.0",
